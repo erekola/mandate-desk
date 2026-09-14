@@ -5,8 +5,13 @@
   "excludes": [
     "SHA256-MANIFEST.json"
   ],
-  "fileCount": 65,
+  "fileCount": 66,
   "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 108,
+      "sha256": "33905186c4dabeca22ab9afff5156cc1af1f227ec4ddc522516c24671c2723e9"
+    },
     {
       "path": ".gitignore",
       "bytes": 67,

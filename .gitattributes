@@ -1,0 +1,2 @@
+# Store every file byte for byte, so SHA256-MANIFEST.json matches the repository on every platform.
+* -text
