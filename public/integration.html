@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mandate Desk | Sepolia preparation</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/integration.mjs" type="module"></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="/integration" aria-label="Mandate Desk Sepolia preparation"><span class="brand-symbol" aria-hidden="true">M</span><span data-copy="brand"></span></a><span class="workspace" data-copy="workspace"></span><span class="mode"><span class="dot"></span><span data-copy="mode"></span></span></header>
+  <main>
+    <section class="intro"><div><p class="eyebrow" data-copy="mode"></p><h1 data-copy="headline"></h1><p class="lead" data-copy="intro"></p></div><div class="intro-actions"><button class="primary" id="prepare" data-copy="prepare"></button><a class="button quiet" href="/" data-copy="simulationLink"></a></div></section>
+    <div id="notification" role="status" aria-live="polite" class="notification" hidden></div>
+    <section class="card" aria-labelledby="proposal-heading"><div class="section-heading"><h2 id="proposal-heading" data-copy="proposalTitle"></h2><button class="quiet" id="refresh" data-copy="refresh"></button></div><div id="proposal" class="empty"><strong data-copy="empty"></strong></div></section>
+    <section class="card review-card" aria-labelledby="owner-heading"><div class="section-heading"><h2 id="owner-heading" data-copy="reviewTitle"></h2><span id="approval-status" class="badge pending"></span></div><p class="support" data-copy="reviewHelp"></p><dl class="technical"><dt data-copy="previewHash"></dt><dd><code id="preview-hash">-</code></dd></dl><button class="primary" id="approve" data-copy="approve" disabled></button></section>
+    <section class="card activity-card" aria-labelledby="actions-heading"><div class="section-heading"><h2 id="actions-heading" data-copy="actionsTitle"></h2><span id="envelope-count" class="badge pending">0 / 5</span></div><p class="support" data-copy="actionsHelp"></p><div id="actions"></div></section>
+    <section class="card activity-card" aria-labelledby="agent-heading"><div class="section-heading"><h2 id="agent-heading" data-copy="agentTitle"></h2></div><p class="support" data-copy="agentHelp"></p><div class="review-actions"><button class="secondary" id="preflight" data-copy="preflight" disabled></button><button class="danger" id="execute" data-copy="execute" disabled></button></div><div id="receipt" class="receipt"><h3 data-copy="receipt"></h3><p data-copy="noReceipt"></p></div></section>
+  </main>
+  <footer><span data-copy="brand"></span><span data-copy="footer"></span></footer>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mandate Desk</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.mjs" type="module"></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="/" aria-label="Mandate Desk"><span class="brand-symbol" aria-hidden="true">M</span><span data-copy="brand"></span></a><span class="workspace" data-copy="workspace"></span><span class="mode"><span class="dot"></span><span data-copy="simulation"></span></span></header>
+  <main>
+    <section class="intro"><div><p class="eyebrow" data-copy="simulation"></p><h1 data-copy="headline"></h1><p class="lead" data-copy="intro"></p></div><div class="intro-actions"><button class="primary" id="scenario" data-copy="runScenario"></button><a class="button quiet" href="/api/export" data-copy="export"></a><a class="button quiet" href="/integration" data-copy="integrationLink"></a></div></section>
+    <p class="mode-note" data-copy="simulationNote"></p>
+    <div id="notification" role="status" aria-live="polite" class="notification" hidden></div>
+    <section class="overview" aria-labelledby="overview-heading"><div class="budget"><div class="section-heading"><h2 id="overview-heading" data-copy="allowanceTitle"></h2><span id="policy-status" class="badge"></span></div><div class="budget-number"><strong id="remaining"></strong><span>MDT</span><span class="small-label" data-copy="remaining"></span></div><progress id="budget-progress" max="100" value="0" aria-label="Mandate used"></progress><div class="budget-caption"><span><span data-copy="used"></span> <strong id="used"></strong> MDT</span><span><span data-copy="totalLimit"></span> <strong id="total"></strong> MDT</span></div></div><div class="metric"><span data-copy="perTransfer"></span><strong><span id="single"></span> <small>MDT</small></strong><p data-copy="simulation"></p></div><div class="metric"><span data-copy="demoBalance"></span><strong><span id="balance"></span> <small>MDT</small></strong><p data-copy="localSaved"></p></div></section>
+    <div class="workspace-grid">
+      <section class="card request-card"><div class="section-heading"><h2 data-copy="requestTitle"></h2><span class="section-number" aria-hidden="true">01</span></div><p class="support" data-copy="requestHelp"></p><form id="transfer-form"><label for="recipient" data-copy="recipient"></label><input id="recipient" name="recipient" type="text" spellcheck="false" autocomplete="off" required maxlength="42"><label for="amount" data-copy="amount"></label><div class="amount-field"><input id="amount" name="amount" type="text" inputmode="decimal" value="30" required maxlength="80" aria-describedby="amount-help"><span>MDT</span></div><p id="amount-help" class="field-help" data-copy="amountHelp"></p><button class="primary full" type="submit" data-copy="prepare"></button></form><div class="identity"><div><span data-copy="principal"></span><code id="principal"></code></div><div><span data-copy="agent"></span><code id="agent"></code></div></div></section>
+      <section class="card policy-card"><div class="section-heading"><h2 data-copy="policyTitle"></h2><span class="section-number" aria-hidden="true">02</span></div><p class="support" data-copy="policyHelp"></p><form id="policy-form"><div class="two-fields"><div><label for="max-transaction" data-copy="perTransfer"></label><input id="max-transaction" name="maxTransaction" inputmode="decimal" value="60" required maxlength="80"></div><div><label for="max-cumulative" data-copy="totalLimit"></label><input id="max-cumulative" name="maxCumulative" inputmode="decimal" value="100" required maxlength="80"></div></div><label for="allowed-recipients" data-copy="recipients"></label><textarea id="allowed-recipients" name="recipients" rows="2" spellcheck="false" maxlength="900" aria-describedby="recipient-help" required></textarea><p class="field-help" id="recipient-help" data-copy="recipientHelp"></p><div class="policy-actions"><button class="secondary" type="submit" data-copy="grant"></button><button class="danger" type="button" id="revoke" data-copy="revoke"></button></div></form></section>
+    </div>
+    <section id="review-panel" class="card review-card" hidden tabindex="-1" aria-labelledby="review-heading"><div class="section-heading"><h2 id="review-heading" data-copy="reviewTitle"></h2><button class="quiet" id="close-review" data-copy="closeDetails"></button></div><p class="support" data-copy="reviewHelp"></p><div id="review-content"></div></section>
+    <section class="card activity-card"><div class="section-heading"><h2 data-copy="eventsTitle"></h2><button class="quiet" id="refresh" data-copy="refresh"></button></div><p class="support" data-copy="eventsHelp"></p><div id="activity"></div><div id="scenario-result" class="scenario-result" hidden></div><p class="field-help" data-copy="scenarioHelp"></p></section>
+    <section class="setup"><div class="setup-mark" aria-hidden="true">B</div><div><h2 data-copy="setupTitle"></h2><p data-copy="setupHelp"></p></div><span class="badge pending" data-copy="setupStatus"></span></section>
+  </main><footer><span data-copy="brand"></span><span data-copy="localSaved"></span></footer>
+</body>
+</html>

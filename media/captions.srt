@@ -1,0 +1,62 @@
+1
+00:00:00,000 --> 00:00:12,000
+LOCAL SIMULATION
+An agent requests. The owner decides.
+The agent can prepare a transfer. Approval belongs to the owner workspace.
+The same checks serve the browser and the scoped MCP tools.
+
+2
+00:00:12,000 --> 00:00:26,000
+LOCAL SIMULATION
+The owner sets a bounded mandate.
+60 MDT per transfer. 100 MDT in total. Only listed recipients are allowed.
+Creating a mandate preserves previous activity and demo balances.
+
+3
+00:00:26,000 --> 00:00:44,000
+LOCAL SIMULATION
+Review the request before approval.
+30 MDT passes the local checks. The owner reviews the recipient and the complete plan hash.
+A changed plan cannot reuse the original approval.
+
+4
+00:00:44,000 --> 00:01:00,000
+LOCAL SIMULATION
+One approved transfer is simulated.
+The app rechecks the approval and current mandate before applying 30 MDT to the ledger.
+The receipt records the observed balances before and after.
+
+5
+00:01:00,000 --> 00:01:15,000
+LOCAL SIMULATION
+A retry returns the same receipt.
+The same request ID and plan hash return the existing result. The balance stays unchanged.
+An ID reused for a different request is rejected.
+
+6
+00:01:15,000 --> 00:01:28,000
+LOCAL SIMULATION
+80 MDT is denied locally.
+The request exceeds the limit of 60 MDT per transfer. No approval or balance change follows.
+Enforcing layer: local simulation policy.
+
+7
+00:01:28,000 --> 00:01:44,000
+LOCAL SIMULATION
+The remaining budget is checked too.
+50 MDT succeeds. A following request for 25 MDT exceeds the 20 MDT remaining.
+Two accepted transfers have now used 80 MDT in total.
+
+8
+00:01:44,000 --> 00:01:58,000
+LOCAL SIMULATION
+Revocation blocks the next request.
+The owner revokes the mandate once. A request for 1 MDT is then denied.
+Enforcing layer: local mandate state. There is no failed chain transaction.
+
+9
+00:01:58,000 --> 00:02:12,000
+LOCAL SIMULATION
+The Sepolia path has its own boundary.
+Unsigned preparation is separate from this ledger. A live run needs fresh checks and an authorized signer.
+The package includes exact transaction validation, recovery and semantic postcheck code with fixture tests.

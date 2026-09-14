@@ -1,0 +1,14 @@
+{
+  "name": "mandate-desk",
+  "version": "0.2.0-preview.1",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node src/server.mjs --port 4327 --data .local-demo",
+    "mcp": "node src/mcp.mjs --data .local-demo",
+    "mcp:integration": "node src/mcp-integration.mjs --data .local-demo",
+    "test": "node tools/check-demo.mjs",
+    "check": "node tools/check-demo.mjs"
+  }
+}

@@ -1,0 +1,336 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-14",
+  "algorithm": "sha256",
+  "excludes": [
+    "SHA256-MANIFEST.json"
+  ],
+  "fileCount": 65,
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 67,
+      "sha256": "c73e86970abd2f0d786155e428490875f967dc1965dfa6b4e98d58976547f2a6"
+    },
+    {
+      "path": "AI-DISCLOSURE.md",
+      "bytes": 1145,
+      "sha256": "7fbc5cad3fc8f8305e48a88e0080779bbd6c8893d09a9dd096f179b80016addc"
+    },
+    {
+      "path": "DEMO.md",
+      "bytes": 3865,
+      "sha256": "67973f0a35bf96e534d35e79419728388b9b3195a8d9404d956651e3099b3f9c"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1082,
+      "sha256": "c8ae41db25e710bc483461136e176b66f7d98a63ed35dafc0629c69280e4fe62"
+    },
+    {
+      "path": "README.md",
+      "bytes": 6345,
+      "sha256": "0a3285fa181165b877f7405fa095f724040dbf9dbf61ec5b07d4914671b7fd81"
+    },
+    {
+      "path": "THIRD-PARTY-NOTICES.md",
+      "bytes": 1429,
+      "sha256": "eb7fe69b2810a1729f49585fd9588e93419713b68f9d31a3c71c1353cfd0eaea"
+    },
+    {
+      "path": "VERIFICATION.md",
+      "bytes": 6240,
+      "sha256": "efc6b99a2187478cefdfb58a67ceec2b59da7c9935aab4cc202b032a9f93c5e3"
+    },
+    {
+      "path": "integration/demo-proposal.json",
+      "bytes": 5197,
+      "sha256": "e792ac0bcb6b02e6c755c3b67f25a89ccbb1a2450ad360770de36874a5675ae8"
+    },
+    {
+      "path": "media/TRANSCRIPT.md",
+      "bytes": 1944,
+      "sha256": "61ad1ede6d338a82775c2fde69db04db2b5b9059641a9766141640fa52a9aa8e"
+    },
+    {
+      "path": "media/captions.srt",
+      "bytes": 2103,
+      "sha256": "e038ef1f54cd57016bc641745ea97289d40478d5042a3447a384a0eafd1b7576"
+    },
+    {
+      "path": "media/mandate-desk-card.png",
+      "bytes": 334455,
+      "sha256": "44699a56ece585066452fbcd8593b7abfad6cb088bba4e3ea1a5dca3b42ff922"
+    },
+    {
+      "path": "media/mandate-desk-demo.mp4",
+      "bytes": 1082175,
+      "sha256": "f44d45a2b2c0913d13b097fd7f1d4bc1d5f327ab7e9bd1a04979ba7b49fb730e"
+    },
+    {
+      "path": "package.json",
+      "bytes": 426,
+      "sha256": "2e26def53fda19c709c72fe5534553746d6b833e4f2e633af2971ce8e3037b97"
+    },
+    {
+      "path": "public/app.mjs",
+      "bytes": 9645,
+      "sha256": "6a15d6ea8471164d0ccabbccb2c123a4b4f236c2ff8aedb0b45c98c1699d35f1"
+    },
+    {
+      "path": "public/copy.json",
+      "bytes": 4722,
+      "sha256": "85926259188cc3833cd1a7d6a44739fca201985eb2d152fa5e6f4793c4b2922c"
+    },
+    {
+      "path": "public/demo-copy.json",
+      "bytes": 3108,
+      "sha256": "622f3dbda775cb7fd02c1008d382a2bfb3d58047960eeb66c6ace31de90ceedc"
+    },
+    {
+      "path": "public/demo.html",
+      "bytes": 845,
+      "sha256": "a657d6b30a86f2284dfdc81743d7a45acf0d89fd6dad36152b2f6e2ce691da91"
+    },
+    {
+      "path": "public/demo.mjs",
+      "bytes": 6663,
+      "sha256": "b43cfe829758b69732bfa43abd9bd20fa836a34527119eddb7cd95c136d70be4"
+    },
+    {
+      "path": "public/index.html",
+      "bytes": 5277,
+      "sha256": "3c6d8df563210ebaf86065b871eb0e623b79e1687e9a029dc071b17ff0e798eb"
+    },
+    {
+      "path": "public/integration-copy.json",
+      "bytes": 3016,
+      "sha256": "e32fa629c693b45aafa08e8be9b828f57b588f5f882515f66a8062e894bf99e7"
+    },
+    {
+      "path": "public/integration.html",
+      "bytes": 2733,
+      "sha256": "1a087aafa24e0c035af47836e4c2fa2bc6f92d97552066a4648f1b22900370c3"
+    },
+    {
+      "path": "public/integration.mjs",
+      "bytes": 7827,
+      "sha256": "7a679e84da081ac9147a3ff7465cf1e5545e9383f818f53ed5dca29de2d6b119"
+    },
+    {
+      "path": "public/style.css",
+      "bytes": 11949,
+      "sha256": "6f79797759a78841023264a9914c8dbc3fd608fc5ee8459f158c387c2ee04cc0"
+    },
+    {
+      "path": "src/brickken-envelope.mjs",
+      "bytes": 15020,
+      "sha256": "9d9859c1702c3dbd17d1d1ba0d35dc6ead2ac176bc6c8758613f9785ceecc053"
+    },
+    {
+      "path": "src/brickken-executor.mjs",
+      "bytes": 8772,
+      "sha256": "2c3346e62e66a4d41d868aea95a4fcb79fee3d4811c3aab58dcde97439a4c141"
+    },
+    {
+      "path": "src/brickken-http.mjs",
+      "bytes": 5126,
+      "sha256": "f1122400a2ad04d5b2a2800cc39898aa2da304f73bfe8dc962ad5faa4e3d8547"
+    },
+    {
+      "path": "src/brickken-intent.mjs",
+      "bytes": 16515,
+      "sha256": "c4b0a584ec27df276e351117c181a95e9394a5d8d6cc9c5344e8cbf018437614"
+    },
+    {
+      "path": "src/brickken-journal.mjs",
+      "bytes": 25228,
+      "sha256": "50013a24ea113e3bcbd33201035b6accb2bfe1205adb39058d9f664d6375e1c5"
+    },
+    {
+      "path": "src/brickken-lifecycle.mjs",
+      "bytes": 15616,
+      "sha256": "e460c221bacba5c29c0d04f2217160fc1c91d2bd7e67aff1f31e996c6ea182dc"
+    },
+    {
+      "path": "src/brickken-mandate.mjs",
+      "bytes": 5548,
+      "sha256": "292eb1dd40c2b40a2ef3acf211e808d55ba7268975df19a4b6ac39e051448968"
+    },
+    {
+      "path": "src/brickken-postcheck.mjs",
+      "bytes": 24120,
+      "sha256": "b5b56f012db9ab0ffc9df7a71bd9f5a82c9c4deeb6799166d5c928601431c37f"
+    },
+    {
+      "path": "src/brickken-prepare.mjs",
+      "bytes": 10556,
+      "sha256": "edb13332bc524db238785a67287264347ecaba5c58b35a49ae2daaf967607a8b"
+    },
+    {
+      "path": "src/brickken-read.mjs",
+      "bytes": 14533,
+      "sha256": "5bcb1adaa74ae5b408bbf5899b2365216e2f16883637c446cae8453281450934"
+    },
+    {
+      "path": "src/brickken-workspace.mjs",
+      "bytes": 26651,
+      "sha256": "8cef6a6c2e246f0d4da13a890f63ff3183464c977e590cdd0a720b811700d28b"
+    },
+    {
+      "path": "src/demo-recording.mjs",
+      "bytes": 1153,
+      "sha256": "7732c102c879fcdb741039433d7df1cfd0a0fef53b305ace5b5cd8aec24f482b"
+    },
+    {
+      "path": "src/domain.mjs",
+      "bytes": 20484,
+      "sha256": "a5ab886c84a61dcbf10810c9f98f1561d531772a9c99a290994309450fbbe2df"
+    },
+    {
+      "path": "src/mcp-integration.mjs",
+      "bytes": 6808,
+      "sha256": "f3b1ddd50f94a9fc47f841f77c028f66e7db343495790595a2b0c94fae15fd12"
+    },
+    {
+      "path": "src/mcp-stdio.mjs",
+      "bytes": 2401,
+      "sha256": "3a82a7efc035db88286182471f4c3a8adda664d6748c07945edefded3b180e65"
+    },
+    {
+      "path": "src/mcp.mjs",
+      "bytes": 7770,
+      "sha256": "fe9ed7b6b4f87cd0557a39ae1ebd8a71d535c87b07ae51de6609488be08f591d"
+    },
+    {
+      "path": "src/server.mjs",
+      "bytes": 8900,
+      "sha256": "692c29299771bdbbd0d7084bd0feab5f088c404dbdaf154c451c8c9b2476080c"
+    },
+    {
+      "path": "src/store.mjs",
+      "bytes": 4273,
+      "sha256": "dc2c4d9cde4cfea7efeffd5d596353dcc0078a34f406c45ac93a3df89c693e49"
+    },
+    {
+      "path": "start-demo.ps1",
+      "bytes": 4085,
+      "sha256": "795b7494d5df399f5087ae425a72ed5a615a41b4d6214aa36971d36b2bfd82c3"
+    },
+    {
+      "path": "test/brickken-envelope.test.mjs",
+      "bytes": 12556,
+      "sha256": "aaeb3d0d8b3580c30b4dd9e549ba4fd8a1c9076966bcd9c079c9763e3b022b47"
+    },
+    {
+      "path": "test/brickken-executor.test.mjs",
+      "bytes": 9627,
+      "sha256": "e687f2b1d7e1e78e5634dd5cc91bca33ecce5bee7e8ddb83aa1522fafe8ed3ef"
+    },
+    {
+      "path": "test/brickken-http.test.mjs",
+      "bytes": 6389,
+      "sha256": "b3527c8a01413ce6f3609354837c46c5c1d387883e467044bc1444041c0860e4"
+    },
+    {
+      "path": "test/brickken-intent.test.mjs",
+      "bytes": 13752,
+      "sha256": "52f018565b6387510cd3f3983bf45bf8bbdd6bdfdb171233244ee210afcd1c20"
+    },
+    {
+      "path": "test/brickken-journal.test.mjs",
+      "bytes": 12648,
+      "sha256": "8b55eb8f5bd2c0758c1d3774dec9729a60529de783b6d1679ecfec5ccae39329"
+    },
+    {
+      "path": "test/brickken-lifecycle.test.mjs",
+      "bytes": 12201,
+      "sha256": "299da91cac8e8f18f5ee36d63d45bfed240a5b18ae6fd97ad239e8fc66cc877e"
+    },
+    {
+      "path": "test/brickken-mandate.test.mjs",
+      "bytes": 4876,
+      "sha256": "acbe7058f8628b19d4cc5a7f3f770b929e78d3bfe374dff647c2413838b051f2"
+    },
+    {
+      "path": "test/brickken-postcheck.test.mjs",
+      "bytes": 15714,
+      "sha256": "73e0596af5ef4eedba443c45fd0082e9fe608ad75334b9bb259329718f6452fa"
+    },
+    {
+      "path": "test/brickken-prepare.test.mjs",
+      "bytes": 13185,
+      "sha256": "d1d79ae506a0778d2cb9e393271f41c0df0ef839ba1632e276e0a1c51bb5ce3b"
+    },
+    {
+      "path": "test/brickken-read.test.mjs",
+      "bytes": 14562,
+      "sha256": "42fa2134753697d46c441601e7d7e21878098798068197aeb5c403c1447680e8"
+    },
+    {
+      "path": "test/brickken-workspace.test.mjs",
+      "bytes": 12272,
+      "sha256": "8fb4f8b35bb3a4a55bed6f8b28e4d6825b848a81b41520f9988acfc4c0268e2d"
+    },
+    {
+      "path": "test/demo-recording.test.mjs",
+      "bytes": 1293,
+      "sha256": "a3f4e775d215c0b573c8d37178c375f1fd37656708688c51a19967a2e081413c"
+    },
+    {
+      "path": "test/domain.test.mjs",
+      "bytes": 8946,
+      "sha256": "84360278c49541b1ab0244faeafcafbf15faa14000b33b5fdcc080a2b322171c"
+    },
+    {
+      "path": "test/interfaces.test.mjs",
+      "bytes": 5953,
+      "sha256": "2953954baa27227576b09ea057b2d61d150b32252639fdf50f264cb2acd74852"
+    },
+    {
+      "path": "test/mcp-transport.test.mjs",
+      "bytes": 5930,
+      "sha256": "f244f27172d77f90caf4bc65efcc68bbdcb099639a880ab54beaba606a0e926e"
+    },
+    {
+      "path": "test/state-integrity.test.mjs",
+      "bytes": 6485,
+      "sha256": "50b870fd2ab2516cad70709412c87868ed5562159da4428af6a63db9a0738753"
+    },
+    {
+      "path": "test/store-concurrency.test.mjs",
+      "bytes": 4883,
+      "sha256": "e9cd08a3bbd50efebbfb4c74928ef390c134e8bd21b33bd80645eab41d790d06"
+    },
+    {
+      "path": "tools/check-demo.mjs",
+      "bytes": 1080,
+      "sha256": "a736d608da56e50bea97daddd9b73fdc1e2202505bb2f9e5563f5f1e4bf43d19"
+    },
+    {
+      "path": "tools/write-mcp-config.mjs",
+      "bytes": 603,
+      "sha256": "4ee5385e5cb0541cba612395d86e808e8691b0a48d5149c453b91c3d2452797e"
+    },
+    {
+      "path": "vendor/ethers-6.17.0/LICENSE.md",
+      "bytes": 1075,
+      "sha256": "44eea86637405118248327fbe9d9fa95d04c7a57221c7e8c155f736db9f1b612"
+    },
+    {
+      "path": "vendor/ethers-6.17.0/artifact-manifest.json",
+      "bytes": 601,
+      "sha256": "65e9f64a11a7d284fe7c0f3650b79875f657a5e6dbe46549e434cfea0f266448"
+    },
+    {
+      "path": "vendor/ethers-6.17.0/ethers.umd.min.cjs",
+      "bytes": 526551,
+      "sha256": "532950515fd29ae9f7a21ceb2b68100815024d7944c3d5a92246d5b900bd703b"
+    },
+    {
+      "path": "verification/brickken-sandbox-2026-09-14/public-chain/action-setup-simulation.json",
+      "bytes": 1392,
+      "sha256": "02767a96aea371540091db434b22e141fbb86c2a2430d688f0818962fc32b658"
+    }
+  ]
+}

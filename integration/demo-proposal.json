@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "kind": "offline-demo-proposal",
+  "recordedAtUtc": "2026-09-14T09:54:29.711Z",
+  "recipient": {
+    "address": "0x8888888888888888888888888888888888888888",
+    "source": "synthetic address for the public repository",
+    "ownershipVerified": false,
+    "walletSepoliaSupportVerified": false
+  },
+  "asset": {
+    "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+    "chainId": "11155111",
+    "decimals": 6,
+    "name": "Circle USDC on Ethereum Sepolia",
+    "source": "https://developers.circle.com/stablecoins/usdc-contract-addresses",
+    "selection": "proposed-by-Codex-for-local-planning",
+    "financialValue": false
+  },
+  "proposedLimits": {
+    "permittedTransferRaw": "10000",
+    "permittedTransferDisplay": "0.01 test USDC",
+    "maxTransactionValueRaw": "10000",
+    "maxCumulativeValueRaw": "10000",
+    "allowanceRaw": "10000",
+    "allowanceIsProposedNotObserved": true,
+    "overLimitPreflightRaw": "20000",
+    "validitySeconds": 1800,
+    "absoluteValidity": null,
+    "validityRule": "Create the concrete 30-minute window immediately before an authorized live prepare; no current mandate is granted."
+  },
+  "localOverLimitResult": {
+    "code": "TRANSACTION_CAP",
+    "layer": "local offline intent validation",
+    "broadcast": false,
+    "transactionHash": null
+  },
+  "intendedSequence": [
+    "fresh public and authenticated provisioning checks",
+    "owner setAction for transferFrom",
+    "owner approve exactly 10000 raw token units for the dedicated executor",
+    "owner grant the 30-minute mandate",
+    "read preflight and agent execute one 10000-unit transfer",
+    "read preflight denial for 20000 units",
+    "owner revoke",
+    "read preflight denial after revoke"
+  ],
+  "permittedExecutionCall": {
+    "schemaVersion": 1,
+    "kind": "rams-offline-execution-call",
+    "intent": {
+      "schemaVersion": 1,
+      "kind": "rams-transferFrom-intent",
+      "policy": {
+        "chainId": "11155111",
+        "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+        "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+        "executor": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+        "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "recipient": "0x8888888888888888888888888888888888888888",
+        "action": {
+          "selector": "0x23b872dd00000000000000000000000000000000000000000000000000000000",
+          "supported": true,
+          "hasAmount": true,
+          "amountIndex": 2
+        },
+        "maxTransactionValue": "10000",
+        "maxCumulativeValue": "10000",
+        "cumulativeUsed": "0",
+        "allowance": "10000"
+      },
+      "transfer": {
+        "from": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+        "to": "0x8888888888888888888888888888888888888888",
+        "amount": "10000"
+      },
+      "innerCalldata": "0x23b872dd0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d400000000000000000000000088888888888888888888888888888888888888880000000000000000000000000000000000000000000000000000000000002710",
+      "scope": {
+        "offlineOnly": true,
+        "chainWriteAuthorized": false,
+        "outerEncoderAvailable": false,
+        "executorBindingVerified": false
+      },
+      "policyHash": "d8727fbc030eeaa8468b0cb7826cee8fca45a7740d9e38d9d1b51039bdf4791f",
+      "intentHash": "98f8a87b9406c4bd1771afa737043c20ef877d5b9f5f9e6c7c1ac6e9ab619407"
+    },
+    "call": {
+      "chainId": "11155111",
+      "from": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+      "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+      "value": "0",
+      "data": "0x1cff79cd0000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c72380000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006423b872dd0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d40000000000000000000000008888888888888888888888888888888888888888000000000000000000000000000000000000000000000000000000000000271000000000000000000000000000000000000000000000000000000000"
+    },
+    "scope": {
+      "offlineOnly": true,
+      "chainWriteAuthorized": false,
+      "signingReady": false,
+      "provisioningReady": false,
+      "abiSemanticsValidated": true
+    },
+    "outerCalldataHash": "8cab0d8e2797ed5601676825a571aca5e3f5ce947ec00e342978aee8d998c40e",
+    "callHash": "9798afedffd3cd1a658161253b8dacd1db71f7333f7741d322440ee23b5244f1"
+  },
+  "knownBlockers": [
+    "principal and agent gas balances were zero at block 0xb28f6e",
+    "principal token balance and allowance were zero at block 0xb28f6e",
+    "transferFrom action was disabled at block 0xb28f6e",
+    "signer API whitelist and quotas unverified",
+    "wallet content access and signing are not authorized",
+    "live API prepare, signing, retry journal, token-event verification and UI/MCP chain integration are not complete"
+  ],
+  "scope": {
+    "offlineOnly": true,
+    "recipientSelected": true,
+    "liveTokenSelectionAuthorized": false,
+    "signingReady": false,
+    "provisioningReady": false,
+    "chainWriteAuthorized": false
+  },
+  "proposalHash": "cbaa46eb8eb86cf2b03ea1239df0b240a69a343fe9e7a792dd6f7fd119872e22"
+}

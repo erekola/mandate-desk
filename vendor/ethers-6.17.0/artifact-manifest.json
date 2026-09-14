@@ -1,0 +1,21 @@
+{
+  "extractedAt": "2026-09-14T08:42:00.892Z",
+  "mode": "exact-two-regular-entries",
+  "historicalBundleHashMatched": true,
+  "files": [
+    {
+      "archivePath": "package/dist/ethers.umd.min.js",
+      "file": "ethers.umd.min.cjs",
+      "bytes": 526551,
+      "sha256": "532950515fd29ae9f7a21ceb2b68100815024d7944c3d5a92246d5b900bd703b"
+    },
+    {
+      "archivePath": "package/LICENSE.md",
+      "file": "LICENSE.md",
+      "bytes": 1075,
+      "sha256": "44eea86637405118248327fbe9d9fa95d04c7a57221c7e8c155f736db9f1b612"
+    }
+  ],
+  "walletAccess": false,
+  "packageScriptsExecuted": false
+}

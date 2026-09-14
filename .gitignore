@@ -1,0 +1,5 @@
+.local-demo/
+data/
+test-output/
+*.review.json
+*.tyyliraportti.json
