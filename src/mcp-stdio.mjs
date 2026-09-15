@@ -6,17 +6,23 @@ export function runMcpStdio(session, { input = process.stdin, output = process.s
   let pending = Buffer.alloc(0);
   let discardingOversizedLine = false;
   const write = message => output.write(JSON.stringify(message) + '\n');
-  const oversized = () => write({
+  // Replies keep request order even when a session answers asynchronously.
+  let queue = Promise.resolve();
+  const enqueue = work => { queue = queue.then(work, work); };
+  const oversized = () => enqueue(() => write({
     jsonrpc: '2.0',
     id: null,
     error: { code: -32700, message: `Parse error: input line exceeds ${MAX_LINE_BYTES} bytes` }
-  });
+  }));
   const handle = line => {
-    if (!line.toString('utf8').trim()) return;
-    let reply;
-    try { reply = session.handle(JSON.parse(line.toString('utf8'))); }
-    catch { reply = { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }; }
-    if (reply) write(reply);
+    const text = line.toString('utf8');
+    if (!text.trim()) return;
+    enqueue(async () => {
+      let reply;
+      try { reply = await session.handle(JSON.parse(text)); }
+      catch { reply = { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }; }
+      if (reply) write(reply);
+    });
   };
   input.on('data', chunk => {
     let offset = 0;

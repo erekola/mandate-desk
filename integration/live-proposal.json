@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "kind": "live-sepolia-proposal",
+  "network": "Ethereum Sepolia",
+  "chainId": "11155111",
+  "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+  "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+  "executor": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+  "registry": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+  "complianceProvider": "0xa90d2503d5d9b80ecc27856ff76f892b8c02f278",
+  "identityRef": "0x6cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f7633",
+  "token": {
+    "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+    "symbol": "USDC",
+    "decimals": 6,
+    "source": "https://developers.circle.com/stablecoins/usdc-contract-addresses",
+    "testnetOnly": true
+  },
+  "recipient": {
+    "address": "0x8888888888888888888888888888888888888888",
+    "source": "synthetic address for the public repository",
+    "ownershipVerified": false
+  },
+  "limits": {
+    "maxTransactionValue": "10000",
+    "maxCumulativeValue": "15000",
+    "allowance": "15000",
+    "minimumPrincipalTokenBalance": "20000"
+  },
+  "amounts": {
+    "execute": "10000",
+    "overTransactionCapProbe": "11000",
+    "cumulativeAllowedProbe": "5000",
+    "cumulativeDeniedProbe": "6000",
+    "revocationProbe": "2500"
+  },
+  "mandateValiditySeconds": 3600,
+  "routes": {
+    "brickkenApi": {
+      "origin": "https://api.sandbox.brickken.com",
+      "authentication": "x-api-key",
+      "executionMode": "client-signed",
+      "paymentFallback": false,
+      "prepare": {
+        "setAction": "/x402/rams/set-executor-action",
+        "grant": "/x402/rams/grant-mandate",
+        "execute": "/x402/rams/execute",
+        "revoke": "/x402/rams/revoke-mandate"
+      },
+      "send": "/send-transactions",
+      "status": "/get-transaction-status",
+      "openApiSha256": "af7edefb97c2e3248efb584b1836212ce0d4a0a34d71db2a4bed0b50a0e8379f"
+    },
+    "sepoliaRpc": {
+      "operations": [
+        "approve",
+        "approveReset"
+      ],
+      "broadcastEndpoint": "https://ethereum-sepolia-rpc.publicnode.com"
+    },
+    "readEndpoints": {
+      "primary": "https://ethereum-sepolia-rpc.publicnode.com",
+      "secondary": "https://sepolia.rpc.thirdweb.com"
+    }
+  },
+  "fees": {
+    "maxFeePerGas": "30000000000",
+    "maxPriorityFeePerGas": "3000000000"
+  },
+  "gasLimitCaps": {
+    "setAction": "90000",
+    "approve": "90000",
+    "grant": "400000",
+    "execute": "300000",
+    "revoke": "150000",
+    "approveReset": "90000"
+  },
+  "confirmations": {
+    "stepProgression": 2,
+    "finalReport": "finalized on both read endpoints"
+  },
+  "writes": [
+    "setAction",
+    "approve",
+    "grant",
+    "execute",
+    "revoke",
+    "approveReset"
+  ],
+  "sequence": [
+    "setAction",
+    "approve",
+    "grant",
+    "control-transaction-cap",
+    "execute",
+    "execute-replay",
+    "control-cumulative-cap",
+    "control-before-revoke",
+    "revoke",
+    "control-after-revoke",
+    "approveReset"
+  ],
+  "persistentConfiguration": "The dedicated executor keeps transferFrom enabled after the run for future mandates.",
+  "recipientEnforcement": "The recipient is enforced by the application intent and by the signer. The RAMS mandate has no recipient list.",
+  "proposalHash": "415254ccd0c7d2764e5175743cc4dec6f718bf51bf0d556fda52bee8c03f6533"
+}

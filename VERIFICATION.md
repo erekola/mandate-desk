@@ -1,10 +1,10 @@
 # Verification record
 
-Prepared on 14 September 2026. This record describes what this public repository proves and where the proof stops. The repository is a curated copy of a reviewed local package. Some results below were measured on the repository's own files. The others are dated results from the reviewed package, and each section says which kind it is.
+Prepared on 14 September 2026 and updated on 15 September 2026. This record describes what this public repository proves and where the proof stops. The repository is a curated copy of a reviewed local package. Some results below were measured on the repository's own files. The others are dated results from the reviewed package, and each section says which kind it is.
 
 ## Tests on this repository
 
-The portable suite was run on this repository's files on 14 September 2026 with Node.js 24.19.0. The command `node tools/check-demo.mjs` passed 162 of 162 tests. The same command passed 162 of 162 on the curated copy before the fixture change below, and both runs reported the same test names.
+The portable suite was run on this repository's files on 15 September 2026 with Node.js 24.19.0. The command `node tools/check-demo.mjs` passed 336 of 336 tests, twice, with the same test names both times. The public copy of 14 September 2026 passed 162 of 162 with the same command, and the 174 tests added since cover the live Sepolia path.
 
 ## Changes from the reviewed package
 
@@ -38,7 +38,11 @@ The final tests exercise exact transaction, receipt, log and block identity chec
 
 Recovery fixtures cover pending, signed, broadcast or uncertain, confirmed and semantically verified journal states. They cover duplicate operation binding, full decoded signed-transaction matching, signed-byte identity, nonce conflicts, unresolved broadcasts, confirmation block-hash changes and restart behavior. An unresolved nonce cannot receive a replacement signature, and only identical signed bytes are eligible for a resend.
 
-These semantic and recovery checks use injected fixtures. The repository does not load a real wallet, create a real signature, call a live RPC endpoint or broadcast a transaction. Fixture bytes and local hashes are not claimed as live Ethereum transaction hashes. A live result would still need independently retained trusted expectations, fresh chain observations, the exact signed transaction and post-confirmation semantic checks.
+These semantic and recovery checks use injected fixtures. The test suite does not load a real wallet, create a real signature, call a live RPC endpoint or broadcast a transaction. The live path can do those things only when started with --live, and it has not been started that way for this repository. Fixture bytes and local hashes are not claimed as live Ethereum transaction hashes. A live result would still need independently retained trusted expectations, fresh chain observations, the exact signed transaction and post-confirmation semantic checks.
+
+## Live Sepolia path
+
+The code of a live Sepolia run is in this repository. It was implemented on 14 September 2026 and audited the same day as round A1, which found eleven defects in recovery, locking, two-source verification, control evidence, cleanup, export completeness and recording metadata. Every finding was fixed with an acceptance test that fails on the audited source and passes on the fixed one, and the suite grew from 313 to 336 tests. A second audit on 15 September 2026 ran the suite twice, replayed the eight root reproductions of round A1 against the fixed source, read every fix against the source and reviewed the path adversarially. It found one low defect, the launcher's argument quoting for a wallet directory that ends in a backslash, and one test assertion that could not fail. Both are fixed in this repository. It recorded one design question for the run approval: the code identity hash is stored with a run but not compared again on resume. No live run has been performed. The repository holds no signed transaction, no wallet, no API key and no chain observation from a run. The tests use a fake chain and a fake gateway.
 
 ## Preserved state and authorization
 
@@ -54,4 +58,4 @@ The broad development run is not used as a verdict. The results above come from 
 
 ## Verification limit
 
-This repository supports review of the application, source, tests, two MCP routes and recorded simulation. It does not prove a live Brickken or Ethereum transaction. No hosted deployment, wallet signing, RPC submission or competition submission is represented as complete.
+This repository supports review of the application, source, tests, three MCP routes and recorded simulation. It does not prove a live Brickken or Ethereum transaction. No hosted deployment, wallet signing, RPC submission or competition submission is represented as complete.

@@ -77,4 +77,12 @@
   .activity-card summary { min-height:50px; padding:12px 8px; cursor:pointer; }
   .activity-card summary:focus-visible { outline:3px solid var(--focus); outline-offset:3px; }
   @media(prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; transition:none!important; animation:none!important; } }
+  #live-section h3 { font-size:15px; font-weight:600; margin:26px 0 10px; color:var(--ink); }
+  #live-section table { table-layout:fixed; min-width:760px; }
+  #live-section td,#live-section th { overflow-wrap:anywhere; }
+  #live-section ul { margin:10px 0 0; padding-left:20px; font-size:13px; color:var(--muted); }
+  #live-section ul li { margin-top:4px; }
+  #live-section pre { white-space:pre-wrap; overflow-wrap:anywhere; max-width:100%; }
+  #live-section summary { min-height:50px; padding:12px 8px; cursor:pointer; }
+  #live-section summary:focus-visible { outline:3px solid var(--focus); outline-offset:3px; }
 }

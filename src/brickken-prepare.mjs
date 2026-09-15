@@ -206,3 +206,72 @@ export function validateExecutePrepareResponse(body, expectationInput, nowSecond
     fail('PREPARATION_REJECTED');
   }
 }
+
+// Live RAMS facade response. The OpenAPI document read on 2026-09-14 gives
+// data.transactions as one EIP-1559 object, data.txId as the preparation ID
+// and data.info as an echo that includes the execution mode. The parsed
+// transaction is an untrusted proposal: the live adapter compares every field
+// with its own independently built expectation before any signature.
+function lowerAddress(value) {
+  if (typeof value !== 'string' || !/^0x[0-9a-fA-F]{40}$/.test(value)) fail('ADDRESS');
+  return value.toLowerCase();
+}
+
+export function parseRamsPrepareResponse(body) {
+  try {
+    if (typeof body !== 'string' || Buffer.byteLength(body, 'utf8') > MAX_BODY_BYTES) fail('BODY_SIZE');
+    const root = JSON.parse(body);
+    if (!plain(root)) fail('ENVELOPE');
+    if (Object.hasOwn(root, 'x402Requirements')) fail('PAYMENT_REVIEW_REQUIRED');
+    let json = root;
+    if (Object.hasOwn(root, 'data')) {
+      shape(root, ['data']);
+      json = root.data;
+      if (!plain(json)) fail('ENVELOPE');
+      if (Object.hasOwn(json, 'x402Requirements')) fail('PAYMENT_REVIEW_REQUIRED');
+    }
+    shape(json, Object.hasOwn(json, 'info') ? ['transactions', 'txId', 'info'] : ['transactions', 'txId']);
+    if (typeof json.txId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(json.txId)) fail('TX_ID');
+    let transactionInput;
+    let transactionsContainerShape;
+    if (Array.isArray(json.transactions)) {
+      if (json.transactions.length !== 1) fail('BATCH_REJECTED');
+      transactionInput = json.transactions[0];
+      transactionsContainerShape = 'array';
+    } else if (plain(json.transactions)) {
+      transactionInput = json.transactions;
+      transactionsContainerShape = 'object';
+    } else fail('BATCH_REJECTED');
+    const wire = normalizeWireTransaction(transactionInput);
+    if (typeof wire.data !== 'string' || !/^0x(?:[0-9a-fA-F]{2})+$/.test(wire.data)) fail('CALLDATA');
+    const transaction = Object.freeze({
+      chainId: wire.chainId,
+      from: lowerAddress(wire.from),
+      to: lowerAddress(wire.to),
+      value: wire.value,
+      data: wire.data.toLowerCase(),
+      nonce: wire.nonce,
+      gasLimit: wire.gasLimit,
+      type: 2,
+      maxPriorityFeePerGas: wire.maxPriorityFeePerGas,
+      maxFeePerGas: wire.maxFeePerGas
+    });
+    let mode = null;
+    let contractAddress = null;
+    if (Object.hasOwn(json, 'info')) {
+      if (!plain(json.info)) fail('INFO');
+      // The documented info object allows additional properties (advisories, eip712Nonce);
+      // only mode and contractAddress are read, and nothing else is forwarded.
+      // Only the client-signed direct mode is accepted; relayed or signature modes stop here.
+      if (Object.hasOwn(json.info, 'mode')) {
+        if (json.info.mode !== 'direct') fail('MODE_REJECTED');
+        mode = 'direct';
+      }
+      if (Object.hasOwn(json.info, 'contractAddress')) contractAddress = lowerAddress(json.info.contractAddress);
+    }
+    return Object.freeze({ txId: json.txId, transactionsContainerShape, transaction, mode, contractAddress });
+  } catch (error) {
+    if (error instanceof BrickkenPrepareError) throw error;
+    fail('PREPARATION_REJECTED');
+  }
+}

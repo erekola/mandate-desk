@@ -32,4 +32,4 @@ If a result differs from the expected sequence or the browser lacks WebM canvas 
 
 A stopped browser does not reset saved application state. Reload the owner page to inspect the recorded receipt before repeating an action. Reuse the original operation identity for an idempotent retry. Keep the server and MCP client pointed at the same data directory.
 
-The integration journal implements offline tests for uncertain broadcasts, duplicate identities, nonce conflicts and changed confirmation blocks. It is not wired to a real signer in this distribution. Never treat a pending preparation, a local approval or receipt status alone as proof of a verified live transfer.
+The integration journal implements offline tests for uncertain broadcasts, duplicate identities, nonce conflicts and changed confirmation blocks. A real signer exists at tools/live-signer.mjs. It serves only the separate live workspace, which runs when the server and the live MCP server are started with --live, and the preview workspace never reaches it. Never treat a pending preparation, a local approval or receipt status alone as proof of a verified live transfer.

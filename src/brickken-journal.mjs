@@ -6,6 +6,7 @@ import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { isVerifiedBrickkenPostcheck } from './brickken-postcheck.mjs';
+import { LiveLockError, acquireLiveLock } from './live-lock.mjs';
 
 /**
  * @typedef {object} JournalTransaction
@@ -76,6 +77,12 @@ function plain(value) {
 function shape(value, keys, code = 'STRUCTURE') {
   if (!plain(value) || Object.keys(value).length !== keys.length ||
       keys.some(key => !Object.hasOwn(value, key))) fail(code);
+}
+// Exact required keys plus a closed set of optional keys, so a record written
+// before an optional field existed still validates.
+function shapeWithOptional(value, keys, optional, code = 'STRUCTURE') {
+  if (!plain(value) || keys.some(key => !Object.hasOwn(value, key)) ||
+      Object.keys(value).some(key => !keys.includes(key) && !optional.includes(key))) fail(code);
 }
 function identifier(value) {
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(value)) fail('IDENTIFIER');
@@ -512,6 +519,515 @@ export class BrickkenJournal {
         if (!['EPERM', 'EACCES', 'EBUSY'].includes(error?.code) || attempt === 25) fail('JOURNAL_BUSY');
         Atomics.wait(WAIT, 0, 0, 10);
       }
+    }
+  }
+}
+
+// Live transaction journal, schemaVersion 2. It keeps the offline state model
+// and adds what a real Sepolia run needs: the route, the Brickken API txId kept
+// apart from the Ethereum transaction hash, a closed live signer source, a
+// confirmation agreed by two RPC sources and a terminal reverted state. It
+// performs no HTTP, signing or broadcast; the adapter supplies observations.
+export const LIVE_JOURNAL_STATES = Object.freeze([...JOURNAL_STATES, 'reverted']);
+export const LIVE_OPERATION_KINDS = Object.freeze(['setAction', 'approve', 'grant', 'execute', 'revoke', 'approveReset']);
+export const LIVE_ROUTES = Object.freeze(['brickken-api', 'sepolia-rpc']);
+export const LIVE_SIGNER_SOURCE = 'live-signer-v1';
+// A live holder of the journal lock makes a writer wait up to about one second.
+const LIVE_LOCK_ATTEMPTS = 100;
+
+const LIVE_BINDING_KEYS = ['operationId', 'operationKind', 'route', 'apiTxId', 'preparationHash', 'transaction', 'createdAt'];
+const LIVE_RECORD_KEYS = [
+  ...LIVE_BINDING_KEYS, 'state', 'updatedAt', 'signed', 'broadcast', 'confirmation', 'semanticVerification'
+];
+const LIVE_SIGNED_KEYS = [
+  'source', 'approvalSha256', 'signedTransaction', 'ethereumTransactionHash', 'signedBytesSha256',
+  'decodedTransaction', 'signedAt'
+];
+const LIVE_BROADCAST_KEYS = ['attempts', 'result', 'relayTransactionHash', 'lastAttemptAt', 'lastObservationAt'];
+// attemptsAt keeps the time of the most recent attempts so a resend budget can
+// be bounded per time window while `attempts` stays the complete audit count.
+const LIVE_BROADCAST_OPTIONAL_KEYS = ['attemptsAt'];
+const MAX_ATTEMPT_TIMES = 64;
+const LIVE_CONFIRMATION_KEYS = [
+  'transactionHash', 'blockNumber', 'blockHash', 'secondaryBlockHash', 'receiptStatus', 'confirmations', 'checkedAt'
+];
+const LIVE_RECHECK_KEYS = ['transactionHash', 'blockNumber', 'blockHash', 'secondaryBlockHash', 'confirmations', 'checkedAt'];
+const LIVE_SEMANTIC_KEYS = ['postcheckKind', 'transactionHash', 'blockNumber', 'blockHash', 'postcheckSha256', 'verifiedAt'];
+const LIVE_POSTCHECK_KEYS = [
+  'schemaVersion', 'kind', 'operationKind', 'transactionHash', 'blockNumber',
+  'blockHash', 'verified', 'checks', 'scope', 'observedAt'
+];
+
+// approve(0) is verified by the same ERC-20 approval postcheck as approve.
+export function livePostcheckKind(operationKind) {
+  if (!LIVE_OPERATION_KINDS.includes(operationKind)) fail('OPERATION_KIND');
+  return operationKind === 'approveReset' ? 'approve' : operationKind;
+}
+function sha64(value) {
+  if (typeof value !== 'string' || !/^[a-f0-9]{64}$/.test(value)) fail('HASH');
+  return value;
+}
+function liveApiTxId(route, value) {
+  if (!LIVE_ROUTES.includes(route)) fail('ROUTE');
+  // A local identifier is never stored as a Brickken txId.
+  if (route === 'sepolia-rpc') {
+    if (value !== null) fail('API_TX_ID_ROUTE');
+    return null;
+  }
+  return identifier(value);
+}
+function validateLiveSigned(value, expected) {
+  shape(value, LIVE_SIGNED_KEYS, 'JOURNAL_CORRUPT');
+  if (value.source !== LIVE_SIGNER_SOURCE || typeof value.approvalSha256 !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(value.approvalSha256)) fail('JOURNAL_CORRUPT');
+  const bytes = exactHex(value.signedTransaction);
+  const decoded = transaction(value.decodedTransaction);
+  if (!same(decoded, expected) || bytes !== value.signedTransaction ||
+      value.signedBytesSha256 !== sha256(Buffer.from(bytes.slice(2), 'hex')) ||
+      hash32(value.ethereumTransactionHash) !== value.ethereumTransactionHash) fail('JOURNAL_CORRUPT');
+  iso(value.signedAt);
+  return value;
+}
+function validateLiveBroadcast(value, signed) {
+  shapeWithOptional(value, LIVE_BROADCAST_KEYS, LIVE_BROADCAST_OPTIONAL_KEYS, 'JOURNAL_CORRUPT');
+  if (!signed || !Number.isSafeInteger(value.attempts) || value.attempts < 1 ||
+      !['accepted', 'uncertain', 'recovered-by-hash', 'nonce-conflict'].includes(value.result)) fail('JOURNAL_CORRUPT');
+  if (Object.hasOwn(value, 'attemptsAt')) {
+    if (!Array.isArray(value.attemptsAt) || value.attemptsAt.length > MAX_ATTEMPT_TIMES ||
+        value.attemptsAt.length > value.attempts) fail('JOURNAL_CORRUPT');
+    for (const at of value.attemptsAt) iso(at);
+  }
+  if (value.relayTransactionHash !== null && hash32(value.relayTransactionHash) !== value.relayTransactionHash) fail('JOURNAL_CORRUPT');
+  // A relay that reported a different hash never counts as an accepted broadcast.
+  if (value.result === 'accepted' && value.relayTransactionHash !== null &&
+      value.relayTransactionHash !== signed.ethereumTransactionHash) fail('JOURNAL_CORRUPT');
+  iso(value.lastAttemptAt);
+  if (value.lastObservationAt !== null) iso(value.lastObservationAt);
+  return value;
+}
+function validateLiveConfirmation(value, signed) {
+  shape(value, LIVE_CONFIRMATION_KEYS, 'JOURNAL_CORRUPT');
+  if (!signed || value.transactionHash !== signed.ethereumTransactionHash ||
+      hash32(value.blockHash) !== value.blockHash || value.secondaryBlockHash !== value.blockHash ||
+      ![0, 1].includes(value.receiptStatus) ||
+      !Number.isSafeInteger(value.confirmations) || value.confirmations < 1) fail('JOURNAL_CORRUPT');
+  uint(value.blockNumber); iso(value.checkedAt);
+  return value;
+}
+function validateLiveSemantic(value, confirmation, operationKind) {
+  shape(value, LIVE_SEMANTIC_KEYS, 'JOURNAL_CORRUPT');
+  if (!confirmation || value.postcheckKind !== livePostcheckKind(operationKind) ||
+      value.transactionHash !== confirmation.transactionHash || value.blockNumber !== confirmation.blockNumber ||
+      value.blockHash !== confirmation.blockHash || !/^[a-f0-9]{64}$/.test(value.postcheckSha256)) fail('JOURNAL_CORRUPT');
+  iso(value.verifiedAt);
+  return value;
+}
+function validateLiveRecord(value) {
+  shape(value, LIVE_RECORD_KEYS, 'JOURNAL_CORRUPT');
+  identifier(value.operationId);
+  if (!LIVE_OPERATION_KINDS.includes(value.operationKind) || !LIVE_ROUTES.includes(value.route)) fail('JOURNAL_CORRUPT');
+  if (value.route === 'brickken-api'
+    ? (typeof value.apiTxId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(value.apiTxId))
+    : value.apiTxId !== null) fail('JOURNAL_CORRUPT');
+  if (typeof value.preparationHash !== 'string' || !/^[a-f0-9]{64}$/.test(value.preparationHash)) fail('JOURNAL_CORRUPT');
+  const tx = transaction(value.transaction);
+  iso(value.createdAt); iso(value.updatedAt);
+  if (!LIVE_JOURNAL_STATES.includes(value.state)) fail('JOURNAL_CORRUPT');
+  const signed = value.signed === null ? null : validateLiveSigned(value.signed, tx);
+  const broadcast = value.broadcast === null ? null : validateLiveBroadcast(value.broadcast, signed);
+  const confirmation = value.confirmation === null ? null : validateLiveConfirmation(value.confirmation, signed);
+  const semantic = value.semanticVerification === null
+    ? null : validateLiveSemantic(value.semanticVerification, confirmation, value.operationKind);
+  const requirements = {
+    pending: [!signed, !broadcast, !confirmation, !semantic],
+    signed: [signed, !broadcast, !confirmation, !semantic],
+    broadcast: [signed, broadcast, ['accepted', 'recovered-by-hash'].includes(broadcast?.result), !confirmation, !semantic],
+    uncertain: [signed, broadcast, ['uncertain', 'nonce-conflict'].includes(broadcast?.result), !confirmation, !semantic],
+    confirmed: [signed, broadcast, confirmation?.receiptStatus === 1, !semantic],
+    reverted: [signed, broadcast, confirmation?.receiptStatus === 0, !semantic],
+    semantically_verified: [signed, broadcast, confirmation?.receiptStatus === 1, semantic]
+  }[value.state];
+  if (!requirements.every(Boolean)) fail('JOURNAL_CORRUPT');
+  return value;
+}
+function liveDocumentHash(document) {
+  return sha256(Buffer.from(canonical({
+    schemaVersion: document.schemaVersion, kind: document.kind, operations: document.operations
+  }), 'utf8'));
+}
+function validateLiveDocument(value) {
+  shape(value, ['schemaVersion', 'kind', 'operations', 'selfHash'], 'JOURNAL_CORRUPT');
+  if (value.schemaVersion !== 2 || value.kind !== 'mandate-desk-live-journal' || !Array.isArray(value.operations) ||
+      value.operations.length > 10000 || typeof value.selfHash !== 'string' || !/^[a-f0-9]{64}$/.test(value.selfHash) ||
+      liveDocumentHash(value) !== value.selfHash) fail('JOURNAL_CORRUPT');
+  const operationIds = new Set();
+  const apiTxIds = new Set();
+  const signedNonces = new Set();
+  for (const record of value.operations) {
+    validateLiveRecord(record);
+    if (operationIds.has(record.operationId)) fail('JOURNAL_CORRUPT');
+    operationIds.add(record.operationId);
+    if (record.apiTxId !== null) {
+      if (apiTxIds.has(record.apiTxId)) fail('JOURNAL_CORRUPT');
+      apiTxIds.add(record.apiTxId);
+    }
+    if (record.signed) {
+      const key = `${record.transaction.chainId}:${record.transaction.from}:${record.transaction.nonce}`;
+      if (signedNonces.has(key)) fail('JOURNAL_CORRUPT');
+      signedNonces.add(key);
+    }
+  }
+  return value;
+}
+function newLiveDocument() {
+  const value = { schemaVersion: 2, kind: 'mandate-desk-live-journal', operations: [], selfHash: '' };
+  value.selfHash = liveDocumentHash(value);
+  return value;
+}
+function serializeLiveDocument(value) {
+  validateLiveDocument(value);
+  const serialized = JSON.stringify(value, null, 2);
+  if (Buffer.byteLength(serialized, 'utf8') > MAX_FILE_BYTES) fail('JOURNAL_TOO_LARGE');
+  return serialized;
+}
+function pickBinding(record) {
+  return Object.fromEntries(LIVE_BINDING_KEYS.map(key => [key, record[key]]));
+}
+
+export class LiveBrickkenJournal {
+  constructor({ directory, now = () => new Date().toISOString() } = {}) {
+    if (typeof now !== 'function') fail('TIME');
+    if (typeof directory !== 'string') fail('PATH_SCOPE');
+    this.now = () => iso(now());
+    this.directory = boundedJournalPath(directory);
+    fs.mkdirSync(this.directory, { recursive: true });
+    boundedJournalPath(this.directory);
+    this.file = boundedJournalPath(path.join(this.directory, 'live-journal.json'));
+    this.lock = boundedJournalPath(path.join(this.directory, 'live-journal.lock'));
+    if (fs.lstatSync(this.file, { throwIfNoEntry: false })) this.#read();
+    else this.#writeTransaction(() => null, true);
+  }
+
+  get(operationId) {
+    identifier(operationId);
+    const record = this.#read().operations.find(item => item.operationId === operationId);
+    if (!record) fail('OPERATION_NOT_FOUND');
+    return structuredClone(record);
+  }
+
+  find(operationId) {
+    identifier(operationId);
+    const record = this.#read().operations.find(item => item.operationId === operationId);
+    return record ? structuredClone(record) : null;
+  }
+
+  list() { return structuredClone(this.#read().operations); }
+
+  createPending(binding) {
+    shape(binding, LIVE_BINDING_KEYS);
+    const candidate = {
+      operationId: identifier(binding.operationId),
+      operationKind: LIVE_OPERATION_KINDS.includes(binding.operationKind) ? binding.operationKind : fail('OPERATION_KIND'),
+      route: binding.route,
+      apiTxId: liveApiTxId(binding.route, binding.apiTxId),
+      preparationHash: sha64(binding.preparationHash),
+      transaction: transaction(binding.transaction),
+      createdAt: iso(binding.createdAt), state: 'pending', updatedAt: binding.createdAt,
+      signed: null, broadcast: null, confirmation: null, semanticVerification: null
+    };
+    return this.#writeTransaction(document => {
+      const duplicate = document.operations.find(item => item.operationId === candidate.operationId);
+      if (duplicate) {
+        if (!same(pickBinding(duplicate), pickBinding(candidate))) fail('OPERATION_ID_CONFLICT');
+        return duplicate;
+      }
+      if (candidate.apiTxId !== null && document.operations.some(item => item.apiTxId === candidate.apiTxId)) {
+        fail('TX_ID_CONFLICT');
+      }
+      document.operations.push(candidate);
+      return candidate;
+    });
+  }
+
+  // An unsigned preparation can be replaced, for example when its nonce went
+  // stale before signing. Nothing was signed, so no transaction identity is lost.
+  replacePending(binding) {
+    shape(binding, LIVE_BINDING_KEYS);
+    const candidate = {
+      operationId: identifier(binding.operationId),
+      operationKind: LIVE_OPERATION_KINDS.includes(binding.operationKind) ? binding.operationKind : fail('OPERATION_KIND'),
+      route: binding.route,
+      apiTxId: liveApiTxId(binding.route, binding.apiTxId),
+      preparationHash: sha64(binding.preparationHash),
+      transaction: transaction(binding.transaction),
+      createdAt: iso(binding.createdAt), state: 'pending', updatedAt: binding.createdAt,
+      signed: null, broadcast: null, confirmation: null, semanticVerification: null
+    };
+    return this.#writeTransaction(document => {
+      const index = document.operations.findIndex(item => item.operationId === candidate.operationId);
+      if (index === -1) fail('OPERATION_NOT_FOUND');
+      const record = document.operations[index];
+      if (record.state !== 'pending' || record.signed !== null) fail('STATE_TRANSITION');
+      if (record.operationKind !== candidate.operationKind || record.route !== candidate.route) fail('OPERATION_ID_CONFLICT');
+      if (candidate.apiTxId !== null && document.operations.some(item => item.operationId !== candidate.operationId &&
+          item.apiTxId === candidate.apiTxId)) fail('TX_ID_CONFLICT');
+      document.operations[index] = candidate;
+      return candidate;
+    });
+  }
+
+  // verifySignedTransaction has the offline journal's contract: it decodes and
+  // Keccak-hashes the exact bytes with the pinned Ethereum library and returns
+  // { transactionHash, transaction }. The journal compares every decoded field.
+  recordSigned(operationId, signedInput, verifySignedTransaction) {
+    identifier(operationId);
+    shape(signedInput, ['source', 'approvalSha256', 'signedTransaction', 'signedAt']);
+    if (signedInput.source !== LIVE_SIGNER_SOURCE || typeof verifySignedTransaction !== 'function') {
+      fail('SIGNED_VERIFIER_REQUIRED');
+    }
+    const approvalSha256 = sha64(signedInput.approvalSha256);
+    const bytes = exactHex(signedInput.signedTransaction);
+    const verified = verifySignedTransaction(bytes);
+    shape(verified, ['transactionHash', 'transaction'], 'SIGNED_VERIFICATION');
+    const decoded = transaction(verified.transaction);
+    const signed = {
+      source: LIVE_SIGNER_SOURCE,
+      approvalSha256,
+      signedTransaction: bytes,
+      ethereumTransactionHash: hash32(verified.transactionHash, 'ETHEREUM_TRANSACTION_HASH'),
+      signedBytesSha256: sha256(Buffer.from(bytes.slice(2), 'hex')),
+      decodedTransaction: decoded,
+      signedAt: iso(signedInput.signedAt)
+    };
+    return this.#writeTransaction(document => {
+      const record = this.#find(document, operationId);
+      if (!same(record.transaction, decoded)) fail('SIGNED_TRANSACTION_MISMATCH');
+      if (record.signed) {
+        if (record.signed.signedTransaction === signed.signedTransaction &&
+            record.signed.approvalSha256 === signed.approvalSha256) return record;
+        fail('UNRESOLVED_SIGNATURE');
+      }
+      if (record.state !== 'pending') fail('STATE_TRANSITION');
+      if (document.operations.some(item => item.operationId !== record.operationId && item.signed !== null &&
+          item.transaction.chainId === record.transaction.chainId && item.transaction.from === record.transaction.from &&
+          item.transaction.nonce === record.transaction.nonce)) fail('NONCE_ALREADY_RESERVED');
+      record.signed = signed; record.state = 'signed'; record.updatedAt = signed.signedAt;
+      return record;
+    });
+  }
+
+  recordBroadcast(operationId, signedTransaction, input) {
+    identifier(operationId);
+    shape(input, ['result', 'attemptedAt', 'relayTransactionHash']);
+    if (!['accepted', 'uncertain'].includes(input.result)) fail('BROADCAST_RESULT');
+    const bytes = exactHex(signedTransaction);
+    const at = iso(input.attemptedAt);
+    const relay = input.relayTransactionHash === null ? null : hash32(input.relayTransactionHash);
+    return this.#writeTransaction(document => {
+      const record = this.#find(document, operationId);
+      this.#requireSameBytes(record, bytes);
+      if (!['signed', 'broadcast', 'uncertain'].includes(record.state)) fail('STATE_TRANSITION');
+      if (record.broadcast?.result === 'nonce-conflict') fail('NONCE_CONFLICT');
+      const storedRelay = relay ?? record.broadcast?.relayTransactionHash ?? null;
+      const mismatch = storedRelay !== null && storedRelay !== record.signed.ethereumTransactionHash;
+      const result = mismatch || input.result === 'uncertain' ? 'uncertain' : 'accepted';
+      record.broadcast = {
+        attempts: (record.broadcast?.attempts ?? 0) + 1,
+        result: record.state === 'broadcast' && record.broadcast.result === 'recovered-by-hash' && !mismatch
+          ? 'recovered-by-hash' : result,
+        relayTransactionHash: storedRelay,
+        lastAttemptAt: at,
+        lastObservationAt: record.broadcast?.lastObservationAt ?? null,
+        attemptsAt: [...(record.broadcast?.attemptsAt ?? []), at].slice(-MAX_ATTEMPT_TIMES)
+      };
+      record.state = ['accepted', 'recovered-by-hash'].includes(record.broadcast.result) ? 'broadcast' : 'uncertain';
+      record.updatedAt = at;
+      return record;
+    });
+  }
+
+  authorizeIdenticalResend(operationId, signedTransaction) {
+    const record = this.get(operationId);
+    if (!['broadcast', 'uncertain'].includes(record.state) || record.broadcast?.result === 'nonce-conflict') fail('RESEND_BLOCKED');
+    this.#requireSameBytes(record, exactHex(signedTransaction));
+    return Object.freeze({
+      operationId: record.operationId,
+      transactionHash: record.signed.ethereumTransactionHash,
+      signedTransaction: record.signed.signedTransaction,
+      identicalBytesOnly: true
+    });
+  }
+
+  // transactionByHash must be null only when neither RPC source returned the
+  // exact signed hash. latestNonce is the signer's mined nonce count.
+  recoverUncertain(operationId, observation) {
+    shape(observation, ['observedAt', 'transactionByHash', 'latestNonce']);
+    const at = iso(observation.observedAt);
+    const latestNonce = uint(observation.latestNonce);
+    return this.#writeTransaction(document => {
+      const record = this.#find(document, operationId);
+      if (!['broadcast', 'uncertain'].includes(record.state)) fail('RECOVERY_NOT_ALLOWED');
+      const byHash = observation.transactionByHash;
+      if (byHash !== null) {
+        shape(byHash, ['transactionHash', 'nonce', 'from']);
+        if (hash32(byHash.transactionHash) !== record.signed.ethereumTransactionHash ||
+            uint(byHash.nonce) !== record.transaction.nonce || address(byHash.from) !== record.transaction.from) {
+          fail('RECOVERY_MISMATCH');
+        }
+        // Chain evidence of the exact hash outranks an earlier inference; an
+        // accepted broadcast that is now observed simply stays accepted.
+        if (record.broadcast.result !== 'accepted') record.broadcast.result = 'recovered-by-hash';
+        record.state = 'broadcast';
+      } else if (BigInt(latestNonce) > BigInt(record.transaction.nonce)) {
+        record.broadcast.result = 'nonce-conflict';
+        record.state = 'uncertain';
+      }
+      record.broadcast.lastObservationAt = at; record.updatedAt = at;
+      return record;
+    });
+  }
+
+  confirm(operationId, input) {
+    shape(input, LIVE_CONFIRMATION_KEYS);
+    const confirmation = {
+      transactionHash: hash32(input.transactionHash), blockNumber: uint(input.blockNumber),
+      blockHash: hash32(input.blockHash), secondaryBlockHash: hash32(input.secondaryBlockHash),
+      receiptStatus: input.receiptStatus, confirmations: input.confirmations, checkedAt: iso(input.checkedAt)
+    };
+    if (![0, 1].includes(confirmation.receiptStatus)) fail('RECEIPT_STATUS');
+    if (!Number.isSafeInteger(confirmation.confirmations) || confirmation.confirmations < 1) fail('CONFIRMATIONS');
+    if (confirmation.secondaryBlockHash !== confirmation.blockHash) fail('SOURCE_DISAGREEMENT');
+    return this.#writeTransaction(document => {
+      const record = this.#find(document, operationId);
+      if (!['broadcast', 'uncertain', 'confirmed', 'reverted'].includes(record.state)) fail('STATE_TRANSITION');
+      if (confirmation.transactionHash !== record.signed.ethereumTransactionHash) fail('TRANSACTION_HASH_MISMATCH');
+      if (record.confirmation) {
+        const { checkedAt: _checked, confirmations: _count, ...existing } = record.confirmation;
+        const { checkedAt: _incomingChecked, confirmations: _incomingCount, ...incoming } = confirmation;
+        if (!same(existing, incoming)) fail('CONFIRMATION_CONFLICT');
+      }
+      if (record.broadcast.result !== 'accepted') record.broadcast.result = 'recovered-by-hash';
+      record.confirmation = confirmation;
+      record.state = confirmation.receiptStatus === 1 ? 'confirmed' : 'reverted';
+      record.updatedAt = confirmation.checkedAt;
+      return record;
+    });
+  }
+
+  // A different block hash at the recorded height from either source is a
+  // reorganisation: the confirmation and any semantic result are withdrawn.
+  recheckConfirmation(operationId, observation) {
+    shape(observation, LIVE_RECHECK_KEYS);
+    const at = iso(observation.checkedAt);
+    if (!Number.isSafeInteger(observation.confirmations) || observation.confirmations < 1) fail('CONFIRMATIONS');
+    return this.#writeTransaction(document => {
+      const record = this.#find(document, operationId);
+      if (!['confirmed', 'reverted', 'semantically_verified'].includes(record.state) || !record.confirmation) {
+        fail('CONFIRMATION_REQUIRED');
+      }
+      const matches = hash32(observation.transactionHash) === record.confirmation.transactionHash &&
+        uint(observation.blockNumber) === record.confirmation.blockNumber &&
+        hash32(observation.blockHash) === record.confirmation.blockHash &&
+        hash32(observation.secondaryBlockHash) === record.confirmation.blockHash;
+      if (matches) {
+        // The current depth replaces the stored one: a count is never kept from an earlier, deeper reading.
+        record.confirmation.checkedAt = at;
+        record.confirmation.confirmations = observation.confirmations;
+        record.updatedAt = at;
+        return record;
+      }
+      record.confirmation = null; record.semanticVerification = null;
+      record.broadcast.result = 'uncertain'; record.broadcast.lastObservationAt = at;
+      record.state = 'uncertain'; record.updatedAt = at;
+      return record;
+    });
+  }
+
+  markSemanticallyVerified(operationId, postcheck) {
+    shape(postcheck, LIVE_POSTCHECK_KEYS, 'POSTCHECK');
+    if (!isVerifiedBrickkenPostcheck(postcheck) || postcheck.schemaVersion !== 1 ||
+        postcheck.kind !== 'brickken-semantic-postcheck' || postcheck.verified !== true) fail('POSTCHECK');
+    return this.#writeTransaction(document => {
+      const record = this.#find(document, operationId);
+      if (record.state !== 'confirmed' || !record.confirmation) fail('CONFIRMATION_REQUIRED');
+      if (postcheck.operationKind !== livePostcheckKind(record.operationKind)) fail('POSTCHECK_KIND');
+      if (hash32(postcheck.transactionHash) !== record.confirmation.transactionHash ||
+          uint(postcheck.blockNumber) !== record.confirmation.blockNumber ||
+          hash32(postcheck.blockHash) !== record.confirmation.blockHash) fail('POSTCHECK_IDENTITY');
+      const semantic = {
+        postcheckKind: postcheck.operationKind,
+        transactionHash: record.confirmation.transactionHash,
+        blockNumber: record.confirmation.blockNumber,
+        blockHash: record.confirmation.blockHash,
+        postcheckSha256: sha256(Buffer.from(canonical(postcheck), 'utf8')),
+        verifiedAt: this.now()
+      };
+      record.semanticVerification = semantic; record.state = 'semantically_verified'; record.updatedAt = semantic.verifiedAt;
+      return record;
+    });
+  }
+
+  #find(document, operationId) {
+    const record = document.operations.find(item => item.operationId === operationId);
+    if (!record) fail('OPERATION_NOT_FOUND');
+    return record;
+  }
+  #requireSameBytes(record, bytes) {
+    if (!record.signed || record.signed.signedTransaction !== bytes ||
+        record.signed.signedBytesSha256 !== sha256(Buffer.from(bytes.slice(2), 'hex'))) fail('SIGNED_BYTES_MISMATCH');
+  }
+  #read() {
+    boundedJournalPath(this.file);
+    try {
+      const stat = fs.statSync(this.file);
+      if (!stat.isFile() || stat.size > MAX_FILE_BYTES) fail('JOURNAL_CORRUPT');
+      return validateLiveDocument(JSON.parse(fs.readFileSync(this.file, 'utf8')));
+    } catch (error) {
+      if (error instanceof BrickkenJournalError) throw error;
+      fail('JOURNAL_CORRUPT');
+    }
+  }
+  // The short write lock follows the shared live lock protocol: a live holder
+  // makes the write wait and then fail JOURNAL_BUSY, a holder whose process is
+  // gone is taken over, and unreadable lock content stops with its own code.
+  #writeTransaction(change, initialize = false) {
+    boundedJournalPath(this.lock); boundedJournalPath(this.file);
+    let lease;
+    try {
+      lease = acquireLiveLock(this.lock, {
+        holder: { purpose: 'live-journal-write' }, now: () => Date.parse(this.now()),
+        attempts: LIVE_LOCK_ATTEMPTS, waitMs: 10, busyCode: 'JOURNAL_BUSY'
+      });
+    } catch (error) {
+      if (!(error instanceof LiveLockError)) throw error;
+      fail(error.code === 'LOCK_INVALID' ? 'JOURNAL_LOCK_INVALID' : error.code === 'LOCK_CONFLICT' ? 'JOURNAL_LOCK_CONFLICT' : 'JOURNAL_BUSY');
+    }
+    let temporary;
+    try {
+      const exists = fs.existsSync(this.file);
+      const document = exists ? this.#read() : newLiveDocument();
+      if (!exists && !initialize) fail('JOURNAL_CORRUPT');
+      if (exists && initialize) return null;
+      const result = change(document);
+      document.selfHash = liveDocumentHash(document);
+      const serialized = serializeLiveDocument(document);
+      temporary = boundedJournalPath(path.join(this.directory, `live-journal-${randomUUID()}.tmp`));
+      const descriptor = fs.openSync(temporary, 'wx');
+      try {
+        fs.writeFileSync(descriptor, serialized);
+        fs.fsyncSync(descriptor);
+      } finally { fs.closeSync(descriptor); }
+      for (let attempt = 1; attempt <= 25; attempt++) {
+        try { fs.renameSync(temporary, this.file); temporary = null; break; }
+        catch (error) {
+          if (!['EPERM', 'EACCES', 'EBUSY'].includes(error?.code) || attempt === 25) fail('JOURNAL_BUSY');
+          Atomics.wait(WAIT, 0, 0, 10);
+        }
+      }
+      return structuredClone(result);
+    } finally {
+      if (temporary && fs.existsSync(temporary)) fs.unlinkSync(temporary);
+      lease.release();
     }
   }
 }

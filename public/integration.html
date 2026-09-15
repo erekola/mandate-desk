@@ -16,6 +16,31 @@
     <section class="card review-card" aria-labelledby="owner-heading"><div class="section-heading"><h2 id="owner-heading" data-copy="reviewTitle"></h2><span id="approval-status" class="badge pending"></span></div><p class="support" data-copy="reviewHelp"></p><dl class="technical"><dt data-copy="previewHash"></dt><dd><code id="preview-hash">-</code></dd></dl><button class="primary" id="approve" data-copy="approve" disabled></button></section>
     <section class="card activity-card" aria-labelledby="actions-heading"><div class="section-heading"><h2 id="actions-heading" data-copy="actionsTitle"></h2><span id="envelope-count" class="badge pending">0 / 5</span></div><p class="support" data-copy="actionsHelp"></p><div id="actions"></div></section>
     <section class="card activity-card" aria-labelledby="agent-heading"><div class="section-heading"><h2 id="agent-heading" data-copy="agentTitle"></h2></div><p class="support" data-copy="agentHelp"></p><div class="review-actions"><button class="secondary" id="preflight" data-copy="preflight" disabled></button><button class="danger" id="execute" data-copy="execute" disabled></button></div><div id="receipt" class="receipt"><h3 data-copy="receipt"></h3><p data-copy="noReceipt"></p></div></section>
+    <section class="card" aria-labelledby="live-heading" id="live-section">
+      <div class="section-heading"><h2 id="live-heading" data-copy="liveTitle"></h2><button class="quiet" id="live-refresh" data-copy="liveRefresh"></button></div>
+      <p class="support" data-copy="liveHelp"></p>
+      <div id="live-disabled" class="empty" hidden><strong data-copy="liveDisabled"></strong></div>
+      <div id="live-body" hidden>
+        <h3 data-copy="liveProposalHeading"></h3>
+        <div id="live-proposal"></div>
+        <h3 data-copy="liveSignerHeading"></h3>
+        <p class="support" data-copy="liveSignerHelp"></p>
+        <div id="live-signer"></div>
+        <h3 data-copy="liveRunHeading"></h3>
+        <div id="live-run"></div>
+        <div class="policy-actions">
+          <button class="primary" id="live-prepare" data-copy="livePrepare" disabled></button>
+          <button class="primary" id="live-approve" data-copy="liveApprove" disabled></button>
+          <button class="secondary" id="live-start-setup" data-copy="liveStartSetup" disabled></button>
+          <button class="secondary" id="live-start-revocation" data-copy="liveStartRevocation" disabled></button>
+          <button class="secondary" id="live-resume" data-copy="liveResume" disabled></button>
+          <button class="secondary" id="live-cleanup" data-copy="liveCleanup" disabled></button>
+          <button class="secondary" id="live-finality" data-copy="liveCheckFinality" disabled></button>
+        </div>
+        <div id="live-steps"></div>
+        <div id="live-controls"></div>
+      </div>
+    </section>
   </main>
   <footer><span data-copy="brand"></span><span data-copy="footer"></span></footer>
 </body>

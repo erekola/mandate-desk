@@ -71,6 +71,20 @@ const SCOPE = Object.freeze({
   independentRpcVerified: false,
   confirmationDepthVerified: false
 });
+// Live runs feed the same verifiers with block-bound Sepolia RPC reads. Their
+// reports say so; two-source block agreement and depth live in the live journal.
+const LIVE_SCOPE = Object.freeze({
+  normalizedFixtureInputOnly: false,
+  blockBoundRpcObservation: true,
+  abiSourceMatched: true,
+  rpcAuthenticityVerified: false,
+  independentRpcVerified: false,
+  confirmationDepthVerified: false
+});
+// A cleanup revocation may end a mandate that was already non-executable, so
+// its report records the prior executability and claims no demonstration that
+// the revoke itself removed the right to execute.
+const LIVE_CLEANUP_REVOCATION_SCOPE = Object.freeze({ ...LIVE_SCOPE, cleanupRevocation: true, revocationEffectDemonstrated: false });
 
 export class BrickkenPostcheckError extends Error {
   constructor(code) { super(code); this.name = 'BrickkenPostcheckError'; this.code = code; }
@@ -214,11 +228,11 @@ function normalizeEnvelope(input, trustedExpected, operationKind, semanticKeys, 
     BigInt(before.blockNumber) < BigInt(receipt.blockNumber), 'SNAPSHOT_IDENTITY');
   return { semantics: input.expected.semantics, expected, transaction, receipt, before, after, observedAt: input.observedAt };
 }
-function report(operationKind, normalized, checks) {
+function report(operationKind, normalized, checks, scope = SCOPE) {
   const value = deepFreeze({
     schemaVersion: 1, kind: 'brickken-semantic-postcheck', operationKind,
     transactionHash: normalized.transaction.hash, blockNumber: normalized.receipt.blockNumber,
-    blockHash: normalized.receipt.blockHash, verified: true, checks, scope: SCOPE,
+    blockHash: normalized.receipt.blockHash, verified: true, checks, scope,
     observedAt: normalized.observedAt
   });
   verifiedReports.add(value);
@@ -230,13 +244,22 @@ function deepFreeze(value) {
   }
   return value;
 }
+function scopeFor(options) {
+  if (options === undefined) return SCOPE;
+  if (!plain(options) || options.observationSource !== 'sepolia-rpc-block-bound') fail('OPTIONS');
+  const keys = Object.keys(options);
+  if (keys.length === 1) return LIVE_SCOPE;
+  if (keys.length === 2 && options.cleanupRevocation === true) return LIVE_CLEANUP_REVOCATION_SCOPE;
+  return fail('OPTIONS');
+}
 function actionState(value) {
   shape(value, ['supported', 'hasAmount', 'amountIndex'], 'ACTION_STATE');
   if (!Number.isSafeInteger(value.amountIndex) || value.amountIndex < 0 || value.amountIndex > 255) fail('ACTION_STATE');
   return { supported: bool(value.supported), hasAmount: bool(value.hasAmount), amountIndex: value.amountIndex };
 }
 
-export function verifySetActionPostcheck(input, trustedExpected) {
+export function verifySetActionPostcheck(input, trustedExpected, options) {
+  const scope = scopeFor(options);
   const n = normalizeEnvelope(input, trustedExpected, 'setAction', ['executor', 'owner', 'selector', 'supported', 'hasAmount', 'amountIndex'], ['action']);
   const s = n.semantics;
   if (typeof s.selector !== 'string' || !/^0x[0-9a-fA-F]{8}$/.test(s.selector) ||
@@ -246,15 +269,17 @@ export function verifySetActionPostcheck(input, trustedExpected) {
   check(n.transaction.from === address(s.owner) && n.transaction.to === address(s.executor), 'SEMANTIC_TRANSACTION_MISMATCH');
   const setActionData = n.transaction.data;
   check(setActionData.length === 2 + 4 * 2 + 4 * 64 && setActionData.slice(0, 10) === SET_ACTION_SELECTOR &&
-    setActionData.slice(10, 74).endsWith(s.selector.slice(2).toLowerCase()) &&
+    // bytes4 is left-aligned in its ABI word, as the executor encoder and ethers produce it.
+    setActionData.slice(10, 74) === s.selector.slice(2).toLowerCase() + '0'.repeat(56) &&
     BigInt('0x' + setActionData.slice(74, 138)) === (s.supported ? 1n : 0n) &&
     BigInt('0x' + setActionData.slice(138, 202)) === (s.hasAmount ? 1n : 0n) &&
     BigInt('0x' + setActionData.slice(202, 266)) === BigInt(s.amountIndex), 'SEMANTIC_CALLDATA_MISMATCH');
   check(equal(after, expectedAfter) && !equal(before, after), 'ACTION_STATE_MISMATCH');
-  return report('setAction', n, ['exact-transaction', 'receipt-block-identity', 'action-state-transition']);
+  return report('setAction', n, ['exact-transaction', 'receipt-block-identity', 'action-state-transition'], scope);
 }
 
-export function verifyApprovePostcheck(input, trustedExpected) {
+export function verifyApprovePostcheck(input, trustedExpected, options) {
+  const scope = scopeFor(options);
   const n = normalizeEnvelope(input, trustedExpected, 'approve', ['token', 'owner', 'spender', 'amount'], ['allowance']);
   const s = n.semantics;
   const token = address(s.token), owner = address(s.owner), spender = address(s.spender), amount = uint(s.amount);
@@ -268,10 +293,11 @@ export function verifyApprovePostcheck(input, trustedExpected) {
   const event = oneEvent(n.receipt, token, EVENT_TOPICS.Approval);
   check(event.topics.length === 3 && topicAddress(event.topics[1]) === owner && topicAddress(event.topics[2]) === spender &&
     wordUint(words(event.data, 1)[0]) === amount, 'APPROVAL_EVENT_MISMATCH');
-  return report('approve', n, ['exact-transaction', 'receipt-block-identity', 'approval-event', `allowance:${before}->${after}`]);
+  return report('approve', n, ['exact-transaction', 'receipt-block-identity', 'approval-event', `allowance:${before}->${after}`], scope);
 }
 
-export function verifyGrantPostcheck(input, trustedExpected) {
+export function verifyGrantPostcheck(input, trustedExpected, options) {
+  const scope = scopeFor(options);
   const n = normalizeEnvelope(input, trustedExpected, 'grant', [
     'registry', 'agent', 'principal', 'complianceProvider', 'asset', 'validFrom', 'validUntil',
     'identityRef', 'metadata', 'action', 'maxTransactionValue', 'maxCumulativeValue'
@@ -310,10 +336,11 @@ export function verifyGrantPostcheck(input, trustedExpected) {
   check(enabled.topics.length === 4 && topicAddress(enabled.topics[1]) === expected.agent &&
     topicAddress(enabled.topics[2]) === expected.principal && topicBytes32(enabled.topics[3]) === hash32(s.action) &&
     enabled.data === '0x', 'ACTION_ENABLED_EVENT_MISMATCH');
-  return report('grant', n, ['exact-transaction', 'receipt-block-identity', 'mandate-granted-event', 'action-enabled-event', 'mandate-state']);
+  return report('grant', n, ['exact-transaction', 'receipt-block-identity', 'mandate-granted-event', 'action-enabled-event', 'mandate-state'], scope);
 }
 
-export function verifyExecutePostcheck(input, trustedExpected) {
+export function verifyExecutePostcheck(input, trustedExpected, options) {
+  const scope = scopeFor(options);
   const n = normalizeEnvelope(input, trustedExpected, 'execute', ['registry', 'executor', 'token', 'agent', 'principal', 'recipient', 'action', 'amount', 'maxTransactionValue', 'maxCumulativeValue', 'canExecuteAfter'],
     ['principalBalance', 'recipientBalance', 'allowance', 'mandate', 'canExecute']);
   const s = n.semantics;
@@ -357,10 +384,11 @@ export function verifyExecutePostcheck(input, trustedExpected) {
   return report('execute', n, [
     'exact-transaction', 'receipt-block-identity', 'transfer-event', 'execution-recorded-event',
     'balance-deltas', 'allowance-delta', 'cumulative-delta'
-  ]);
+  ], scope);
 }
 
-export function verifyRevokePostcheck(input, trustedExpected) {
+export function verifyRevokePostcheck(input, trustedExpected, options) {
+  const scope = scopeFor(options);
   const n = normalizeEnvelope(input, trustedExpected, 'revoke', ['registry', 'agent', 'principal', 'revokedBy'],
     ['mandate', 'actionEnabled', 'canExecute']);
   const s = n.semantics;
@@ -372,12 +400,18 @@ export function verifyRevokePostcheck(input, trustedExpected) {
     wordAddress(revokeWords[1]) === address(s.principal) && wordUint(revokeWords[2]) === '0' && wordUint(revokeWords[3]) === '128' &&
     wordUint(revokeWords[4]) === '0', 'SEMANTIC_CALLDATA_MISMATCH');
   check(before.revoked === false && after.revoked === true && equal({ ...before, revoked: true }, after), 'REVOCATION_STATE_MISMATCH');
+  const cleanup = scope.cleanupRevocation === true;
+  const beforeExecutable = bool(n.before.state.canExecute);
+  // The normal demonstration requires an executable mandate before the revoke;
+  // cleanup only requires that nothing is executable after it.
   check(n.before.state.actionEnabled === n.after.state.actionEnabled && typeof n.before.state.actionEnabled === 'boolean' &&
-    n.before.state.canExecute === true && n.after.state.canExecute === false, 'REVOCATION_EFFECT_MISMATCH');
+    (cleanup || beforeExecutable === true) && n.after.state.canExecute === false, 'REVOCATION_EFFECT_MISMATCH');
   const event = oneEvent(n.receipt, s.registry, EVENT_TOPICS.MandateRevoked);
   const eventData = words(event.data, 1);
   check(event.topics.length === 3 && topicAddress(event.topics[1]) === address(s.agent) &&
     topicAddress(event.topics[2]) === address(s.principal) && wordAddress(eventData[0]) === address(s.revokedBy),
   'MANDATE_REVOKED_EVENT_MISMATCH');
-  return report('revoke', n, ['exact-transaction', 'receipt-block-identity', 'mandate-revoked-event', 'revocation-state', 'post-revoke-denial-state']);
+  const checks = ['exact-transaction', 'receipt-block-identity', 'mandate-revoked-event', 'revocation-state'];
+  checks.push(cleanup ? `cleanup-revocation:before-executable-${beforeExecutable}:after-executable-false` : 'post-revoke-denial-state');
+  return report('revoke', n, checks, scope);
 }

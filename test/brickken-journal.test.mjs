@@ -24,7 +24,7 @@ function clock() {
   return () => new Date(Date.UTC(2026, 8, 14, 12, 0, second++)).toISOString();
 }
 function tx(change = {}) {
-  const data = '0xa4a22854' + '0'.repeat(56) + '23b872dd' +
+  const data = '0xa4a22854' + '23b872dd' + '0'.repeat(56) +
     BigInt(1).toString(16).padStart(64, '0') + BigInt(1).toString(16).padStart(64, '0') +
     BigInt(2).toString(16).padStart(64, '0');
   return {

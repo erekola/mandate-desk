@@ -24,7 +24,7 @@ function wordUint(value) { return BigInt(value).toString(16).padStart(64, '0'); 
 function wordAddress(value) { return '0'.repeat(24) + value.slice(2).toLowerCase(); }
 function topicAddress(value) { return '0x' + wordAddress(value); }
 function setActionData() {
-  return '0xa4a22854' + '0'.repeat(56) + '23b872dd' + wordUint(1) + wordUint(1) + wordUint(2);
+  return '0xa4a22854' + '23b872dd' + '0'.repeat(56) + wordUint(1) + wordUint(1) + wordUint(2);
 }
 function approveData() { return '0x095ea7b3' + wordAddress(EXECUTOR) + wordUint(10000); }
 function grantData() {
@@ -256,4 +256,11 @@ test('trusted expectation is separate and calldata cannot disagree with approval
   wrongInnerRecipient.expected.transaction.data = executeData().replace(wordAddress(RECIPIENT), wordAddress(PROVIDER));
   wrongInnerRecipient.transaction.data = wrongInnerRecipient.expected.transaction.data;
   assert.throws(() => verifyExecutePostcheck(wrongInnerRecipient, wrongInnerRecipient.expected), { code: 'SEMANTIC_CALLDATA_MISMATCH' });
+});
+
+// The fixture must use the same ABI layout as the encoder that builds the real
+// transaction; a right-aligned bytes4 once let the verifier reject every genuine setAction.
+test('setAction fixture calldata equals the executor encoder output', async () => {
+  const { encodeSetActionTransferFrom } = await import('../src/brickken-executor.mjs');
+  assert.equal(setActionData(), encodeSetActionTransferFrom());
 });
