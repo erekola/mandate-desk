@@ -445,7 +445,7 @@ test('parseRamsPrepareResponse rejects a relayed or principal-signature mode and
   assert.equal(parseRamsPrepareResponse(direct).mode, 'direct');
 });
 
-test('parseRamsPrepareResponse reads an x402Requirements quote at the root or inside data as information, keeps it out of the transaction, and refuses a quote that is not an object', () => {
+test('parseRamsPrepareResponse reads JSON x402Requirements at the root or inside data as information and keeps it out of the transaction', () => {
   const inner = { transactions: ramsTransaction(), txId: 'rams-fixture-006' };
   const quote = { scheme: 'exact', network: 'eip155:84532', asset: 'USDC', maxAmountRequired: '250000', payTo: '0x' + '55'.repeat(20) };
   for (const body of [
@@ -468,6 +468,12 @@ test('parseRamsPrepareResponse reads an x402Requirements quote at the root or in
   assert.equal(parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: 'pay' } })).x402Quote, 'pay');
   assert.equal(parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: 1 } })).x402Quote, 1);
   assert.equal(parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: null } })).x402Quote, null);
+});
+
+test('round5: RAMS accepts a null outer quote without opening the wrapper to extra keys', () => {
+  const data = { transactions: ramsTransaction(), txId: 'null-quote' };
+  assert.deepEqual(parseRamsPrepareResponse(JSON.stringify({ data, x402Requirements: null })), parseRamsPrepareResponse(JSON.stringify({ data })));
+  assert.throws(() => parseRamsPrepareResponse(JSON.stringify({ data, x402Requirements: null, unexpected: true })), { code: 'STRUCTURE' });
 });
 
 test('parseRamsPrepareResponse rejects an extra or missing transaction key, wrong type discriminant, two-transaction batches, a non-string txId, and invalid JSON, never as a raw SyntaxError', () => {

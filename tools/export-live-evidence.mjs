@@ -110,7 +110,9 @@ function main() {
   };
   const copyEvidence = (name, relative) => {
     const source = path.join(evidenceDirectory, `${name}.json`);
-    if (!fs.existsSync(source)) return false;
+    const stat = fs.lstatSync(source, { throwIfNoEntry: false });
+    if (!stat) return false;
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 8_000_000) stop('an evidence member is not a bounded regular file.');
     write(relative, readJson(source));
     return true;
   };
@@ -162,6 +164,12 @@ function main() {
   for (let index = 1; index <= run.replays.length + 20; index++) copyEvidence(`replay-${index}`, `replays/replay-${index}.json`);
   copyEvidence('finality', 'finality.json');
   copyEvidence('cleanup', 'cleanup.json');
+  // Optional observations: their presence does not make an unfinished cleanup
+  // complete. Only these exact names enter the public checksummed package.
+  for (const name of ['cleanup-allowance-origin', 'cleanup-allowance-origin-sign']) copyEvidence(name, `${name}.json`);
+  const refusals = fs.readdirSync(evidenceDirectory).filter(name => /^cleanup-reset-refused-[0-9]{1,17}\.json$/.test(name)).sort();
+  if (refusals.length > 1000) stop('too many cleanup refusal observations.');
+  for (const file of refusals) copyEvidence(file.slice(0, -5), file);
   write('transactions.json', {
     schemaVersion: 1,
     kind: 'mandate-desk-live-transactions',

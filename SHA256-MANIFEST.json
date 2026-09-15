@@ -24,8 +24,8 @@
     },
     {
       "path": "DEMO.md",
-      "bytes": 4439,
-      "sha256": "87a5764ff4626cf4fb686f445575f9e89ada9b18e30c1bf56a868cb54574a3b3"
+      "bytes": 7190,
+      "sha256": "8b263a213d938509f29ea4130c1e9977024c9fa62e002c678e13780b4b4fc034"
     },
     {
       "path": "LICENSE",
@@ -34,8 +34,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 10847,
-      "sha256": "7990e2b505fd69212fd5e1d2d1aaf983ece188f60fa0d8855c1e22cadb8bdaef"
+      "bytes": 11673,
+      "sha256": "8819d96ac7c8478851112a87da1c55416261d48e5097bd06124aeff85e0b5fe6"
     },
     {
       "path": "THIRD-PARTY-NOTICES.md",
@@ -44,8 +44,8 @@
     },
     {
       "path": "VERIFICATION.md",
-      "bytes": 22591,
-      "sha256": "9515fcb0c58fa9de9611203dc78fe9f85a37229c8759798b976ebca697578e03"
+      "bytes": 25410,
+      "sha256": "f2d8c9aa70f0c72a315994c138674dadcca79844296433e82ebacea633eeee09"
     },
     {
       "path": "integration/demo-proposal.json",
@@ -69,8 +69,8 @@
     },
     {
       "path": "media/mandate-desk-card.png",
-      "bytes": 335839,
-      "sha256": "7e9e712eef81ac837db3db97a2a945da1934aeed41885e97a3f738295ba7761b"
+      "bytes": 335559,
+      "sha256": "c18db92bcd33e84b6984b4f9717ace7f9102a5fd598570e9989a005fe1834c83"
     },
     {
       "path": "media/mandate-desk-demo.mp4",
@@ -189,8 +189,8 @@
     },
     {
       "path": "src/brickken-live-adapter.mjs",
-      "bytes": 66556,
-      "sha256": "b8ad64de0639381cf56c095bc89a909fabf5e184ca86fd6e423459d9bb1f6211"
+      "bytes": 66713,
+      "sha256": "8ca9e69782ec37fc3f094f8090b64e146da806a106ed4836fb4d1e4f240f2e9d"
     },
     {
       "path": "src/brickken-live-completeness.mjs",
@@ -219,8 +219,8 @@
     },
     {
       "path": "src/brickken-prepare.mjs",
-      "bytes": 15769,
-      "sha256": "cb23199e4a0bcbf79d6dcafe675cf9e3b01297684d4521ac5b81c298952ab644"
+      "bytes": 15819,
+      "sha256": "d87ad61eac2eb38f115977a2ebc8bf2528e887d786977acc63794e34a59a5628"
     },
     {
       "path": "src/brickken-read.mjs",
@@ -229,8 +229,8 @@
     },
     {
       "path": "src/brickken-rpc.mjs",
-      "bytes": 23200,
-      "sha256": "7fe551f62d359d3682d2077d5bf9caf275d223168e29f9828c3a8d8a5ca9a648"
+      "bytes": 26299,
+      "sha256": "a17d9bdaddacf19947e6afe18b4b71529abb3bde161fe8e5c0eec17358fee434"
     },
     {
       "path": "src/brickken-workspace.mjs",
@@ -329,8 +329,8 @@
     },
     {
       "path": "test/brickken-live-http.test.mjs",
-      "bytes": 31115,
-      "sha256": "656183afe32048b6f58d5d6bf407b9a44e0f9af9dfa44a86d6f236c1f60bb1e9"
+      "bytes": 31534,
+      "sha256": "d97f11cb4e9dfe606401b1882770237bf52c7b1844c48a38c1a625ab2e43a281"
     },
     {
       "path": "test/brickken-live-journal.test.mjs",
@@ -354,8 +354,8 @@
     },
     {
       "path": "test/brickken-live-round3-recheck.test.mjs",
-      "bytes": 22888,
-      "sha256": "2d9e3769b136ee7de9f44e3f184ca3f6afb6cce9e585bbd618a524f603cc0a31"
+      "bytes": 28211,
+      "sha256": "fb45fb9ee7673b4c80b1daaf9a9e2a97914c88dd5decd413c51b66c0078c7600"
     },
     {
       "path": "test/brickken-live-signer.test.mjs",
@@ -379,8 +379,8 @@
     },
     {
       "path": "test/brickken-prepare.test.mjs",
-      "bytes": 13582,
-      "sha256": "08fe4befb3ef22a0692092bd407904d1a9fd87bdc618681b6ff67a2fd0c928a2"
+      "bytes": 13931,
+      "sha256": "d2e772f11a89f13cb4f36999aa18b8b4e0553db7bfa847c62454454f3b13ee0c"
     },
     {
       "path": "test/brickken-read.test.mjs",
@@ -389,8 +389,8 @@
     },
     {
       "path": "test/brickken-rpc.test.mjs",
-      "bytes": 27708,
-      "sha256": "778aff1cba175c0202143dfc083fbb353710aaee00c11498bdc4d8391fa3598a"
+      "bytes": 31912,
+      "sha256": "9d46b2022233b740d71ab3360120dd635cae18ee40a8c71360e822525ce91f77"
     },
     {
       "path": "test/brickken-workspace.test.mjs",
@@ -424,8 +424,8 @@
     },
     {
       "path": "test/live-fakes.mjs",
-      "bytes": 28846,
-      "sha256": "dfa23385768aeb5547444b096cb11123f38b753bb52c8cefb7089ce73c890d75"
+      "bytes": 29247,
+      "sha256": "36ee9c93c873911ce5965ca4a9f4b1dc494501fbae66cc8dbb583b7a900120c1"
     },
     {
       "path": "test/mcp-transport.test.mjs",
@@ -449,8 +449,8 @@
     },
     {
       "path": "tools/export-live-evidence.mjs",
-      "bytes": 11071,
-      "sha256": "7f6ec42c9d07875b0a66566fd4c4405beb26abf9d44b880119ee7a98c2a0657e"
+      "bytes": 11828,
+      "sha256": "94215d0b57305eec0afc8e8b9f330bbd358cec91d278e01714a1980ed29a1e9c"
     },
     {
       "path": "tools/live-signer.mjs",

@@ -517,3 +517,68 @@ test('getLogs refuses a returned log outside the filter: another address, a bloc
     await assert.rejects(bad.getLogs(filter), error => error.code === 'RESPONSE_INVALID', label);
   }
 });
+test('round5: reads serialize and space a burst, retry only 429, and recover without another preload', async () => {
+  let calls = 0, active = 0, maximum = 0;
+  const starts = [];
+  const rpc = new SepoliaRpc({ endpoint: SEPOLIA_RPC_ENDPOINTS.primary, readIntervalMs: 10, retryBaseMs: 1,
+    fetchImpl: async (_url, options) => {
+      starts.push(Date.now()); calls++; active++; maximum = Math.max(maximum, active);
+      await new Promise(resolve => setTimeout(resolve, 2)); active--;
+      if (calls <= 2) return new Response('', { status: 429, headers: { 'retry-after': '0' } });
+      const request = JSON.parse(options.body);
+      return new Response(JSON.stringify({ jsonrpc: '2.0', id: request.id, result: '0x1' }));
+    }
+  });
+  assert.deepEqual(await Promise.all(Array.from({ length: 8 }, () => rpc.blockNumber())), Array(8).fill('1'));
+  assert.equal(calls, 10); assert.equal(maximum, 1);
+  for (let i = 1; i < starts.length; i++) assert.ok(starts[i] - starts[i - 1] >= 8, 'read spacing');
+});
+
+test('round5: 429 retry count is finite, a failed lane recovers, and raw sends are attempted once', async () => {
+  let calls = 0, unavailable = true;
+  const rpc = new SepoliaRpc({ endpoint: SEPOLIA_RPC_ENDPOINTS.primary, readIntervalMs: 0, retryBaseMs: 0, maxReadRetries: 2,
+    fetchImpl: async (_url, options) => {
+      calls++;const req = JSON.parse(options.body);
+      return unavailable ? new Response('', { status: 429 }) : new Response(JSON.stringify({ jsonrpc: '2.0', id: req.id, result: '0x1' }));
+    }
+  });
+  await assert.rejects(rpc.blockNumber(), { code: 'HTTP_429' });assert.equal(calls, 3);
+  await assert.rejects(rpc.sendRawTransaction('0x02aa'), { code: 'HTTP_429' });assert.equal(calls, 4);
+  unavailable = false;assert.equal(await rpc.blockNumber(), '1');assert.equal(calls, 5);
+});
+
+test('round5: retry-after is bounded by the original call deadline and expired queued reads never fetch', async () => {
+  let calls = 0;
+  const rpc = new SepoliaRpc({ endpoint: SEPOLIA_RPC_ENDPOINTS.primary, timeoutMs: 20, readIntervalMs: 0,
+    fetchImpl: async () => { calls++; return new Response('', { status: 429, headers: { 'retry-after': '99999999' } }); }
+  });
+  await assert.rejects(rpc.blockNumber(), { code: 'RPC_TIMEOUT' });assert.equal(calls, 1);
+  let queuedCalls = 0;
+  const queued = new SepoliaRpc({ endpoint: SEPOLIA_RPC_ENDPOINTS.primary, timeoutMs: 15, readIntervalMs: 100,
+    fetchImpl: async (_url, options) => { queuedCalls++;return new Promise((_resolve, reject) => options.signal.addEventListener('abort', () => reject(Error('aborted')), { once: true })); }
+  });
+  const results = await Promise.allSettled([queued.blockNumber(), queued.blockNumber()]);
+  assert.ok(results.every(result => result.status === 'rejected' && result.reason.code === 'RPC_TIMEOUT'));
+  assert.equal(queuedCalls, 1);
+});
+
+test('round5: non-429 failures and redirected 429 responses are never retried', async () => {
+  for (const status of [402, 500]) {
+    let calls = 0;
+    const rpc = new SepoliaRpc({ endpoint: SEPOLIA_RPC_ENDPOINTS.primary, fetchImpl: async () => { calls++;return new Response('', { status }); } });
+    await assert.rejects(rpc.blockNumber(), { code: 'HTTP_REJECTED' });assert.equal(calls, 1);
+  }
+  let calls = 0;
+  const rpc = new SepoliaRpc({ endpoint: SEPOLIA_RPC_ENDPOINTS.primary, fetchImpl: async () => { calls++;return { status: 429, redirected: true, url: 'https://example.invalid' }; } });
+  await assert.rejects(rpc.blockNumber(), { code: 'REDIRECT_REJECTED' });assert.equal(calls, 1);
+});
+
+test('round5: getLogs permits exactly 100000 inclusive blocks and refuses 100001 before fetch', async () => {
+  let calls = 0;
+  const rpc = new SepoliaRpc({ endpoint: SEPOLIA_RPC_ENDPOINTS.primary, fetchImpl: async (_url, options) => {
+    calls++;return new Response(JSON.stringify({ jsonrpc: '2.0', id: JSON.parse(options.body).id, result: [] }));
+  } });
+  const filter = { address: '0x' + '11'.repeat(20), topics: ['0x' + '22'.repeat(32)], fromBlock: '1', toBlock: '100000' };
+  assert.deepEqual(await rpc.getLogs(filter), []);
+  await assert.rejects(rpc.getLogs({ ...filter, toBlock: '100001' }), { code: 'INPUT_INVALID' });assert.equal(calls, 1);
+});

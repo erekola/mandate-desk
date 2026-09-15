@@ -150,7 +150,7 @@ test('ambiguous containers, errors, partial objects and invalid batch identifier
   for (const txId of ['', 'a'.repeat(129), '../relative', 'line\nbreak', 1, null]) assert.throws(() => check({ ...response, txId }));
 });
 
-test('an x402Requirements quote in any documented position is read as data and never stops the preparation; a quote that is not an object is an envelope fault', () => {
+test('an x402Requirements quote in any documented position is read as data and accepts JSON values without changing the transaction', () => {
   const { response, check } = fixture();
   const quote = { scheme: 'exact', network: 'eip155:84532', asset: 'USDC', maxAmountRequired: '250000' };
   for (const body of [{ ...response, x402Requirements: quote }, { data: response, x402Requirements: quote },
@@ -161,6 +161,12 @@ test('an x402Requirements quote in any documented position is read as data and n
   for (const other of ['pay', [{ scheme: 'exact' }], null, 1, true]) {
     assert.doesNotThrow(() => check({ ...response, x402Requirements: other }), String(other));
   }
+});
+
+test('round5: a null quote beside a data wrapper is absent metadata and keeps the preparation hash unchanged', () => {
+  const { response, check } = fixture();
+  assert.deepEqual(check({ data: response, x402Requirements: null }), check({ data: response }));
+  assert.throws(() => check({ data: response, x402Requirements: null, surprise: true }), { code: 'STRUCTURE' });
 });
 
 test('invalid exact integers and BigNumber objects are rejected', () => {

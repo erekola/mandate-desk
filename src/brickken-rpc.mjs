@@ -1,8 +1,9 @@
 // Bounded Ethereum Sepolia JSON-RPC reader and raw-transaction relay for two
 // fixed public endpoints. This module holds no keys, performs no signing, and
-// never retries or follows redirects.
+// retries only allowlisted idempotent reads on HTTP 429, and never follows redirects.
 
 export const SEPOLIA_CHAIN_ID = '11155111';
+export const MAX_LOG_BLOCKS = 100_000n;
 export const SEPOLIA_RPC_ENDPOINTS = Object.freeze({
   primary: 'https://ethereum-sepolia-rpc.publicnode.com',
   secondary: 'https://sepolia.rpc.thirdweb.com'
@@ -10,6 +11,10 @@ export const SEPOLIA_RPC_ENDPOINTS = Object.freeze({
 
 const MESSAGE_MAX_CHARS = 160;
 const SIGNED_TX_MAX_BYTES = 512 * 1024;
+const RETRYABLE_READS = new Set(['eth_chainId', 'eth_blockNumber', 'eth_getBlockByHash',
+  'eth_getBlockByNumber', 'eth_getTransactionCount', 'eth_getBalance', 'eth_getCode',
+  'eth_call', 'eth_estimateGas', 'eth_maxPriorityFeePerGas', 'eth_getTransactionByHash',
+  'eth_getTransactionReceipt', 'eth_getLogs']);
 
 export class SepoliaRpcError extends Error {
   constructor(code, method = null) {
@@ -199,8 +204,14 @@ export class SepoliaRpc {
   #url;
   #href;
   #nextId = 1;
+  #readTail = Promise.resolve();
+  #lastReadStarted = 0;
+  #readIntervalMs;
+  #retryBaseMs;
+  #maxReadRetries;
 
-  constructor({ endpoint, fetchImpl = globalThis.fetch, timeoutMs = 15000, maxResponseBytes = 2_000_000 } = {}) {
+  constructor({ endpoint, fetchImpl = globalThis.fetch, timeoutMs = 15000, maxResponseBytes = 2_000_000,
+    readIntervalMs = 120, retryBaseMs = 500, maxReadRetries = 3 } = {}) {
     const entry = Object.entries(SEPOLIA_RPC_ENDPOINTS).find(([, url]) => url === endpoint);
     if (!entry) fail('ENDPOINT_DENIED');
     this.endpointName = entry[0];
@@ -213,9 +224,41 @@ export class SepoliaRpc {
     this.#timeoutMs = timeoutMs;
     if (!Number.isSafeInteger(maxResponseBytes) || maxResponseBytes < 1 || maxResponseBytes > 8_000_000) fail('INPUT_INVALID');
     this.#maxResponseBytes = maxResponseBytes;
+    for (const [value, maximum] of [[readIntervalMs, 1000], [retryBaseMs, 5000], [maxReadRetries, 5]]) {
+      if (!Number.isSafeInteger(value) || value < 0 || value > maximum) fail('INPUT_INVALID');
+    }
+    this.#readIntervalMs = readIntervalMs;
+    this.#retryBaseMs = retryBaseMs;
+    this.#maxReadRetries = maxReadRetries;
   }
 
-  async #request(method, params, { classifyErrors = false } = {}) {
+  async #request(method, params, options = {}) {
+    // Queue and retries share the caller's original time budget. A queued read
+    // that expires never reaches fetch. Writes bypass this queue and never retry.
+    if (!RETRYABLE_READS.has(method)) return this.#requestOnce(method, params, options);
+    const expires = Date.now() + this.#timeoutMs;
+    const perform = async () => {
+      let backoff = 0;
+      for (let attempt = 0; ; attempt += 1) {
+        const pause = Math.max(backoff, this.#lastReadStarted + this.#readIntervalMs - Date.now(), 0);
+        if (Date.now() + pause >= expires) fail('RPC_TIMEOUT', method);
+        if (pause > 0) await new Promise(resolve => setTimeout(resolve, pause));
+        const remaining = expires - Date.now();
+        if (remaining <= 0) fail('RPC_TIMEOUT', method);
+        this.#lastReadStarted = Date.now();
+        try { return await this.#requestOnce(method, params, { ...options, timeoutMs: remaining }); }
+        catch (error) {
+          if (!(error instanceof SepoliaRpcError) || error.code !== 'HTTP_429' || attempt >= this.#maxReadRetries) throw error;
+          backoff = Math.min(5000, Math.max(this.#retryBaseMs * 2 ** attempt, error.retryAfterMs ?? 0));
+        }
+      }
+    };
+    const pending = this.#readTail.then(perform);
+    this.#readTail = pending.catch(() => {});
+    return pending;
+  }
+
+  async #requestOnce(method, params, { classifyErrors = false, timeoutMs = this.#timeoutMs } = {}) {
     const id = this.#nextId;
     this.#nextId += 1;
     const payload = JSON.stringify({ jsonrpc: '2.0', method, params, id });
@@ -225,7 +268,7 @@ export class SepoliaRpc {
       timer = setTimeout(() => {
         controller.abort();
         reject(new SepoliaRpcError('RPC_TIMEOUT', method));
-      }, this.#timeoutMs);
+      }, timeoutMs);
     });
     try {
       const operation = (async () => {
@@ -245,9 +288,23 @@ export class SepoliaRpc {
           fail('NETWORK_FAILED', method);
         }
         if (!response) fail('NETWORK_FAILED', method);
-        if (response.status !== 200) fail(response.status === 429 ? 'HTTP_429' : 'HTTP_REJECTED', method);
         if (response.redirected === true || (response.url && response.url !== this.#url && response.url !== this.#href)) {
           fail('REDIRECT_REJECTED', method);
+        }
+        if (response.status !== 200) {
+          // Do not read provider error text. Keep only a bounded retry delay.
+          if (response.status === 429) {
+            let value;
+            try { value = response.headers?.get?.('retry-after'); } catch { /* optional header */ }
+            const seconds = typeof value === 'string' && /^\d{1,8}$/.test(value) ? Number(value) * 1000 : NaN;
+            const date = typeof value === 'string' && value.length <= 128 ? Date.parse(value) - Date.now() : NaN;
+            const delay = Number.isFinite(seconds) ? seconds : Number.isFinite(date) ? Math.max(0, date) : 0;
+            const error = new SepoliaRpcError('HTTP_429', method);
+            error.retryAfterMs = Math.min(5000, delay);
+            // The finally block aborts this request without accessing its body.
+            throw error;
+          }
+          fail('HTTP_REJECTED', method);
         }
         const text = await boundedRpcBody(response, this.#maxResponseBytes, method);
         let parsed;
@@ -416,8 +473,8 @@ export class SepoliaRpc {
   }
 
   // Bounded event query: one contract address, exact topics (null is a
-  // wildcard position), an inclusive block-number range of at most 100 000
-  // blocks, at most 10 000 logs back. Cleanup reads the Approval history of the
+  // wildcard position), at most MAX_LOG_BLOCKS including both endpoints,
+  // at most 10 000 logs back. Cleanup reads the Approval history of the
   // principal and executor pair from both sources with it, to attribute the
   // allowance on chain to the run's own approve (R3-F02).
   async getLogs({ address, topics, fromBlock, toBlock }) {
@@ -427,7 +484,7 @@ export class SepoliaRpc {
     const filterTopics = topics.map(topic => (topic === null ? null : inputHash(topic, method)));
     const from = BigInt(inputDecimalUint(fromBlock, method));
     const to = BigInt(inputDecimalUint(toBlock, method));
-    if (from > to || to - from > 100_000n) fail('INPUT_INVALID', method);
+    if (from > to || to - from + 1n > MAX_LOG_BLOCKS) fail('INPUT_INVALID', method);
     const result = await this.#request(method, [{ address: addr, topics: filterTopics, fromBlock: '0x' + from.toString(16), toBlock: '0x' + to.toString(16) }]);
     if (!Array.isArray(result) || result.length > 10_000) fail('RESPONSE_INVALID', method);
     const logs = result.map(log => normalizeRpcLog(log, method));

@@ -209,7 +209,7 @@ export function validateExecutePrepareResponse(body, expectationInput, nowSecond
     let quote = readX402Quote(root);
     let json = root;
     if (Object.hasOwn(root, 'data')) {
-      shape(root, quote === null ? ['data'] : ['data', 'x402Requirements']);
+      shape(root, Object.hasOwn(root, 'x402Requirements') ? ['data', 'x402Requirements'] : ['data']);
       json = root.data;
       if (!plain(json)) fail('ENVELOPE');
       quote = quote ?? readX402Quote(json);
@@ -260,7 +260,7 @@ export function parseRamsPrepareResponse(body) {
     let quote = readX402Quote(root);
     let json = root;
     if (Object.hasOwn(root, 'data')) {
-      shape(root, quote === null ? ['data'] : ['data', 'x402Requirements']);
+      shape(root, Object.hasOwn(root, 'x402Requirements') ? ['data', 'x402Requirements'] : ['data']);
       json = root.data;
       if (!plain(json)) fail('ENVELOPE');
       quote = quote ?? readX402Quote(json);

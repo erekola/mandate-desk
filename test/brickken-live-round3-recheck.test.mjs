@@ -17,6 +17,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import vm from 'node:vm';
+import { MAX_LOG_BLOCKS } from '../src/brickken-rpc.mjs';
+import { EVENT_TOPICS } from '../src/brickken-postcheck.mjs';
 import { ROOT } from '../src/store.mjs';
 import { BrickkenLiveWorkspace } from '../src/brickken-workspace.mjs';
 import { LiveBrickkenJournal } from '../src/brickken-journal.mjs';
@@ -44,6 +47,16 @@ function environment() {
 function ownerOf(env, overrides = {}) {
   return new BrickkenLiveWorkspace(env.dir, { role: 'owner', signer: env.gateway.client('owner'), ...env.common, ...overrides });
 }
+
+test('round5: fake event history applies the same inclusive range limit as the RPC client', async () => {
+  const env = environment();
+  const filter = { address: env.proposal.token.address, topics: [EVENT_TOPICS.Approval], fromBlock: '1', toBlock: MAX_LOG_BLOCKS.toString() };
+  for (const rpc of Object.values(env.rpcs)) {
+    assert.deepEqual(await rpc.getLogs(filter), []);
+    await assert.rejects(rpc.getLogs({ ...filter, toBlock: (MAX_LOG_BLOCKS + 1n).toString() }), { code: 'INPUT_INVALID' });
+    await assert.rejects(rpc.getLogs({ ...filter, fromBlock: '2', toBlock: '1' }), { code: 'INPUT_INVALID' });
+  }
+});
 function agentOf(env, overrides = {}) {
   return new BrickkenLiveWorkspace(env.dir, { role: 'agent', signer: env.gateway.client('agent'), ...env.common, ...overrides });
 }
@@ -93,10 +106,11 @@ function evidence(env, run, name) {
   const file = path.join(env.dir, 'live', 'evidence', run.runId, `${name}.json`);
   return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
 }
-function exportEvidence(env, run) {
+function exportEvidence(env, run, allowIncomplete = false) {
   const output = path.relative(ROOT, path.join(ROOT, 'test-output', `fable-r3-export-${randomUUID().slice(0, 8)}`));
   const result = spawnSync(process.execPath, [
-    path.join(ROOT, 'tools', 'export-live-evidence.mjs'), '--data', path.relative(ROOT, env.dir), '--run', run.runId, '--output', output
+    path.join(ROOT, 'tools', 'export-live-evidence.mjs'), '--data', path.relative(ROOT, env.dir), '--run', run.runId, '--output', output,
+    ...(allowIncomplete ? ['--allow-incomplete'] : [])
   ], { cwd: ROOT, encoding: 'utf8', windowsHide: true });
   return { status: result.status, stderr: result.stderr, output: path.join(ROOT, output), relative: output.split(path.sep).join('/') };
 }
@@ -158,6 +172,61 @@ test('R3-F01: a control block reorganised during the last nonce read before the 
   const receipt = await driveAgentExecute(agent, opId(run, 'execute'));
   assert.equal(receipt.execute.status, 'verified', JSON.stringify(receipt.stop));
   assert.equal(signedCount(env, 'execute'), 1);
+});
+
+test('round5: a stopped run retains ALLOWANCE_NOT_ZERO until its own cleanup, then a new plan has no allowance blocker', async () => {
+  const env = environment();
+  env.gateway.faults.prepare.push(null, 'PAYMENT_REQUIRED');
+  const { owner, run } = await ownerApproved(env);
+  await owner.startOwnerSetup({ runId: run.runId });await owner.whenIdle(run.runId);
+  assert.equal(runView(owner).status, 'stopped');
+  assert.equal(env.chain.state.allowance, 15000n);assert.equal(signedCount(env, 'grant'), 0);
+  const isolated = ownerOf({ ...env, dir: testDir('new-plan') });
+  const blocked = await isolated.prepareRun();
+  assert.ok(blocked.run.preflightBlockers.some(item => item.code === 'ALLOWANCE_NOT_ZERO'));
+  await owner.startCleanup({ runId: run.runId });await owner.whenIdle(run.runId);
+  assert.equal(env.chain.state.allowance, 0n);assert.equal(signedCount(env, 'approveReset'), 1);
+  const next = await owner.prepareRun();assert.equal(next.run.preflightBlockers.length, 0);
+});
+
+test('round5: unfinished cleanup exports both origin observations and its refusal in SHA256SUMS, without claiming completeness', async () => {
+  const env = environment(), { owner, run } = await setupToAwaitingAgent(env);
+  actOnLastNonceRead(env, run, 'approveReset', () => mineForeignApproval(env, run, 15000n));
+  await owner.startCleanup({ runId: run.runId });await owner.whenIdle(run.runId);
+  const exported = exportEvidence(env, run, true);assert.equal(exported.status, 0, exported.stderr);
+  const sums = JSON.parse(fs.readFileSync(path.join(exported.output, 'SHA256SUMS.json'), 'utf8'));
+  const names = Object.keys(sums).filter(name => name.startsWith('cleanup-allowance-origin') || name.startsWith('cleanup-reset-refused-'));
+  assert.equal(names.length, 3);
+  for (const name of names) assert.equal(sha256(fs.readFileSync(path.join(exported.output, name))), sums[name]);
+  const record = JSON.parse(fs.readFileSync(path.join(exported.output, 'run.json'), 'utf8'));
+  assert.equal(record.complete, false);assert.equal(record.stop.details.originReason, 'FOREIGN_APPROVAL');
+  assert.equal(env.chain.state.allowance, 15000n);assert.equal(signedCount(env, 'approveReset'), 0);
+  // A matching filename must still be a regular JSON file, never a directory.
+  fs.mkdirSync(path.join(env.dir, 'live', 'evidence', run.runId, 'cleanup-reset-refused-123.json'));
+  assert.notEqual(exportEvidence(env, run, true).status, 0);
+});
+
+test('round5: the documented second execute call supplies the page replay scene without signing; general package binding works before and after it', async () => {
+  const env = environment(), { owner, run } = await completeRun(env);
+  await env.sleep(40 * 12 * 1000);await owner.refreshFinality({ runId: run.runId });
+  assert.equal(runView(owner).replays.length, 0);
+  const initial = exportEvidence(env, run);assert.equal(initial.status, 0, initial.stderr);
+  assert.ok(owner.recordingBinding(run.runId, { packageDirectory: initial.relative }));
+  const copy = JSON.parse(fs.readFileSync(path.join(ROOT, 'public/live-demo-copy.json'), 'utf8'));
+  const element = { getContext: () => new Proxy({}, { get: (_target, name) => name === 'measureText' ? () => ({ width: 0 }) : () => {} }), addEventListener() {} };
+  const context = vm.createContext({ document: { getElementById: () => ({ ...element }) }, fetch: async url => ({ ok: false, json: async () => url === '/live-demo-copy.json' ? copy : {} }) });
+  const script = fs.readFileSync(path.join(ROOT, 'public/live-demo.mjs'), 'utf8');
+  const buildScenes = await vm.runInContext(`(async () => { ${script}\nreturn buildScenes; })()`, context);
+  assert.ok(buildScenes(runView(owner), owner.view().proposal).missing.includes(copy.missing.replay));
+  const signedBefore = env.gateway.entries.filter(entry => entry.type === 'signed').length;
+  const nonceBefore = env.chain.state.nonce[env.proposal.agent];
+  const replay = await agentOf(env).agentExecute({ operationId: opId(run, 'execute') });
+  assert.ok(replay);assert.equal(env.gateway.entries.filter(entry => entry.type === 'signed').length, signedBefore);
+  assert.equal(env.chain.state.nonce[env.proposal.agent], nonceBefore);
+  assert.equal(runView(owner).replays.at(-1).passed, true);
+  assert.equal(buildScenes(runView(owner), owner.view().proposal).scenes.length, 10);
+  const after = exportEvidence(env, run);assert.equal(after.status, 0, after.stderr);
+  assert.ok(owner.recordingBinding(run.runId, { packageDirectory: after.relative }));
 });
 
 test('R3-F01: the pre-revocation controls reorganised during the last nonce read before the revoke signature stop the revocation with no signature and a pending record; the resumed owner observes them again and completes', async () => {

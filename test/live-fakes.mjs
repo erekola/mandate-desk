@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import * as plan from '../src/brickken-live-plan.mjs';
 import { TRANSFER_FROM_ACTION } from '../src/brickken-intent.mjs';
 import { EVENT_TOPICS } from '../src/brickken-postcheck.mjs';
-import { SepoliaRpcError } from '../src/brickken-rpc.mjs';
+import { SepoliaRpcError, MAX_LOG_BLOCKS } from '../src/brickken-rpc.mjs';
 import { LiveAdapterError } from '../src/brickken-live-adapter.mjs';
 import { parseRamsPrepareResponse } from '../src/brickken-prepare.mjs';
 import { PROCESS_CODE_IDENTITY_SHA256 } from '../src/code-identity.mjs';
@@ -407,6 +407,8 @@ export class FakeRpc {
   // inclusive block range. faults.logsError makes the query fail as a source
   // without the method would.
   async getLogs({ address, topics, fromBlock, toBlock }) {
+    const from = BigInt(fromBlock), to = BigInt(toBlock);
+    if (from < 0n || from > to || to - from + 1n > MAX_LOG_BLOCKS) throw new SepoliaRpcError('INPUT_INVALID', 'eth_getLogs');
     if (this.faults.logsError) throw new SepoliaRpcError(this.faults.logsError, 'eth_getLogs');
     const logs = [];
     for (const block of this.#visible()) {
@@ -508,7 +510,9 @@ export class FakeSignerGateway {
         const txId = `fake_prepare_${++gateway.counter}`;
         // The documented response carries an x402Requirements quote beside the transaction; the fake sends one so every live test reads it as data.
         const x402Requirements = { scheme: 'exact', network: 'eip155:84532', asset: 'USDC', maxAmountRequired: '250000', payTo: '0x' + '55'.repeat(20), note: 'fake quote, never paid' };
-        const responseText = JSON.stringify({ data: { transactions: transaction, txId, info: { contractAddress: transaction.to, mode: 'direct' }, x402Requirements } });
+        // Match the observed sandbox envelope as the default fixture. Wrapped
+        // responses and other quote forms remain covered by parser unit tests.
+        const responseText = JSON.stringify({ transactions: transaction, txId, info: { contractAddress: transaction.to, mode: 'direct' }, executionMode: 'client-signed', x402Requirements: [x402Requirements] });
         try {
           const parsed = parseRamsPrepareResponse(responseText);
           plan.checkLiveTransaction(p, step, parsed.transaction, { nonce: String(normalized.nonce) });

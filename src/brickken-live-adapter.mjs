@@ -136,7 +136,7 @@ export function chooseGasLimit(proposal, step, estimate) {
 const BRICKKEN_LAYER_CODES = new Set([
   'PAYMENT_REQUIRED', 'AUTHORIZATION_DENIED', 'RATE_LIMITED', 'HTTP_REJECTED', 'HTTP_TIMEOUT', 'NETWORK_FAILED',
   'HTTP_FAILED', 'REDIRECT_REJECTED', 'RESPONSE_TOO_LARGE', 'RESPONSE_INVALID', 'PREPARATION_REJECTED',
-  'PAYMENT_REVIEW_REQUIRED', 'MODE_REJECTED', 'SEND_RESPONSE_UNREADABLE'
+  'MODE_REJECTED', 'SEND_RESPONSE_UNREADABLE'
 ]);
 
 export class LiveSignerClient {
@@ -726,10 +726,12 @@ export class LiveStepExecutor {
       if (!record || !['confirmed', 'semantically_verified', 'reverted'].includes(record.state)) continue;
       const height = record.confirmation.blockNumber;
       const recorded = record.confirmation.blockHash;
-      const [a, b, latestPrimary, latestSecondary] = await Promise.all([
-        primary.getBlock({ blockNumber: height }), secondary.getBlock({ blockNumber: height }),
-        primary.blockNumber(), secondary.blockNumber()
+      // Each source receives one dependency read at a time. SepoliaRpc also
+      // spaces its read queue, including 429 retries, within one time budget.
+      const [a, b] = await Promise.all([
+        primary.getBlock({ blockNumber: height }), secondary.getBlock({ blockNumber: height })
       ]);
+      const [latestPrimary, latestSecondary] = await Promise.all([primary.blockNumber(), secondary.blockNumber()]);
       const depth = tip => Math.max(0, Number(BigInt(tip) - BigInt(height) + 1n));
       const confirmationsPrimary = a ? depth(latestPrimary) : 0;
       const confirmationsSecondary = b ? depth(latestSecondary) : 0;
