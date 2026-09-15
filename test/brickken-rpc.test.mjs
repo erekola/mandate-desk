@@ -458,3 +458,62 @@ test('a response URL normalized with a trailing slash is accepted and a differen
   const redirected = new SepoliaRpc({ endpoint: SEPOLIA_RPC_ENDPOINTS.primary, fetchImpl: reply('https://example.invalid/') });
   await assert.rejects(redirected.chainId(), { code: 'REDIRECT_REJECTED' });
 });
+
+// ---------------------------------------------------------------------------
+// eth_getLogs: the bounded event query cleanup uses to attribute the allowance (R3-F02)
+
+test('getLogs sends one filter object with hex block bounds and null wildcards, validates every returned log, and refuses a bad filter before any request', async () => {
+  const topic = '0x' + 'ab'.repeat(32);
+  const owner = '0x' + '00'.repeat(12) + '11'.repeat(20);
+  const log = {
+    address: '0x' + 'cc'.repeat(20), topics: [topic, '0x' + '00'.repeat(32), owner], data: '0x' + '00'.repeat(32), transactionHash: '0x' + 'dd'.repeat(32),
+    blockNumber: '0x10', blockHash: '0x' + 'ee'.repeat(32), logIndex: '0x2', removed: false
+  };
+  const handler = fakeFetch(request => okResult(request, [log]));
+  const rpc = new SepoliaRpc({ endpoint: SEPOLIA_RPC_ENDPOINTS.primary, fetchImpl: handler });
+  const logs = await rpc.getLogs({ address: '0x' + 'CC'.repeat(20), topics: [topic, null, owner], fromBlock: '15', toBlock: '17' });
+  assert.equal(handler.calls[0].parsedBody.method, 'eth_getLogs');
+  assert.deepEqual(handler.calls[0].parsedBody.params, [{ address: '0x' + 'cc'.repeat(20), topics: [topic, null, owner], fromBlock: '0xf', toBlock: '0x11' }]);
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0].transactionHash, '0x' + 'dd'.repeat(32));
+  assert.equal(logs[0].blockNumber, '16');
+  assert.equal(logs[0].logIndex, '2');
+  assert.ok(Object.isFrozen(logs[0]));
+  for (const bad of [
+    { address: 'nope', topics: [topic], fromBlock: '1', toBlock: '2' },
+    { address: '0x' + 'cc'.repeat(20), topics: [], fromBlock: '1', toBlock: '2' },
+    { address: '0x' + 'cc'.repeat(20), topics: ['0x12'], fromBlock: '1', toBlock: '2' },
+    { address: '0x' + 'cc'.repeat(20), topics: [topic], fromBlock: '5', toBlock: '2' },
+    { address: '0x' + 'cc'.repeat(20), topics: [topic], fromBlock: '1', toBlock: '200001' },
+    { address: '0x' + 'cc'.repeat(20), topics: [topic], fromBlock: 1, toBlock: '2' }
+  ]) {
+    await assert.rejects(rpc.getLogs(bad), error => error.code === 'INPUT_INVALID');
+  }
+  assert.equal(handler.calls.length, 1);
+  const malformed = rpcFor(request => okResult(request, [{ ...log, logIndex: undefined }]));
+  await assert.rejects(malformed.getLogs({ address: log.address, topics: [topic], fromBlock: '1', toBlock: '2' }), error => error.code === 'RESPONSE_INVALID');
+  const notArray = rpcFor(request => okResult(request, { logs: [] }));
+  await assert.rejects(notArray.getLogs({ address: log.address, topics: [topic], fromBlock: '1', toBlock: '2' }), error => error.code === 'RESPONSE_INVALID');
+});
+
+test('getLogs refuses a returned log outside the filter: another address, a block outside the range, a fixed topic that differs, or a removed log (ADV4-C1)', async () => {
+  const topic = '0x' + 'ab'.repeat(32);
+  const owner = '0x' + '00'.repeat(12) + '11'.repeat(20);
+  const base = {
+    address: '0x' + 'cc'.repeat(20), topics: [topic, owner], data: '0x', transactionHash: '0x' + 'dd'.repeat(32),
+    blockNumber: '0x10', blockHash: '0x' + 'ee'.repeat(32), logIndex: '0x0', removed: false
+  };
+  const filter = { address: base.address, topics: [topic, owner], fromBlock: '15', toBlock: '17' };
+  const good = rpcFor(request => okResult(request, [base]));
+  assert.equal((await good.getLogs(filter)).length, 1);
+  for (const [label, log] of [
+    ['address', { ...base, address: '0x' + 'cd'.repeat(20) }],
+    ['below range', { ...base, blockNumber: '0xe' }],
+    ['above range', { ...base, blockNumber: '0x12' }],
+    ['topic', { ...base, topics: [topic, '0x' + '00'.repeat(12) + '22'.repeat(20)] }],
+    ['removed', { ...base, removed: true }]
+  ]) {
+    const bad = rpcFor(request => okResult(request, [log]));
+    await assert.rejects(bad.getLogs(filter), error => error.code === 'RESPONSE_INVALID', label);
+  }
+});

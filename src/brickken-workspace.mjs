@@ -699,7 +699,8 @@ const STOP_DETAIL_KEYS = [
   'balanceWei', 'steps', 'blockHash', 'purpose', 'notAfter', 'attempts', 'journalState', 'backoffUntil', 'lockFile',
   'controlIds', 'missing', 'to', 'from', 'reason', 'required', 'confirmationsPrimary', 'confirmationsSecondary',
   'dependencyOperationId', 'codeIdentitySha256', 'processCodeIdentitySha256', 'diskCodeIdentitySha256', 'phase',
-  'platform', 'packageDirectory', 'attributed', 'mandate', 'tracked', 'allowance', 'expectedFromRun', 'approveResetVerified', 'member'
+  'platform', 'packageDirectory', 'attributed', 'mandate', 'tracked', 'allowance', 'expectedFromRun', 'approveResetVerified', 'member',
+  'originReason'
 ];
 // Why a recording binding refuses an exported package (R2-F04). One code, one
 // reason field, so a caller reads the same failure whether a member is damaged,
@@ -1202,7 +1203,11 @@ export class BrickkenLiveWorkspace {
       proposalHash: this.proposal.proposalHash,
       codeIdentitySha256: run.codeIdentitySha256 ?? null,
       ownerApprovedAt: run.ownerApproval.approvedAt,
-      finality: { checkedAt: run.finality.checkedAt, allFinalized: run.finality.allFinalized },
+      // checkedAt is the time of the run's current finality reading, which this
+      // binding rests on; packageCheckedAt is the time of the reading the
+      // exported package recorded. They may differ: the statement was compared
+      // above, and the package's own time is bound by its checksums (5.4).
+      finality: { checkedAt: run.finality.checkedAt, allFinalized: run.finality.allFinalized, packageCheckedAt: table.finalityCheckedAt ?? null },
       transactions,
       controls: LIVE_CONTROL_IDS.map(id => ({ id, blockNumber: run.controls[id].blockNumber, blockHash: run.controls[id].blockHash })),
       evidencePackage: { directory, sha256sumsSha256: createHash('sha256').update(sumsBytes).digest('hex') }
@@ -1469,7 +1474,11 @@ export class BrickkenLiveWorkspace {
       // approvals of the same amount are indistinguishable by state, and a reset
       // then removes a value equal to the run's own.
       const expected = this.#allowanceLeftByRun(run);
-      const attributable = proven('approve') && !verified('approveReset') && expected !== null && reads.allowance === expected;
+      // The value alone does not show where it came from: a later approval of
+      // the same amount reads the same. The origin is read from the Approval
+      // history of the owner and spender pair on both sources (R3-F02).
+      const origin = await this.#allowanceOrigin(runId, run, reads);
+      const attributable = proven('approve') && !verified('approveReset') && expected !== null && reads.allowance === expected && origin.attributed;
       if (attributable) {
         await this.#advanceUntilDone(executor, runId, 'approveReset');
         allowanceResetByCleanup = true;
@@ -1478,7 +1487,7 @@ export class BrickkenLiveWorkspace {
         problems.push({
           code: 'CLEANUP_UNATTRIBUTED_ALLOWANCE',
           message: 'A non-zero allowance on chain is not attributed to this run\'s approve, so cleanup does not reset it. The evidence is kept; the allowance needs a separate decision.',
-          details: { attributed: attribution.approve?.attributed ?? null, allowance: reads.allowance, expectedFromRun: expected, approveResetVerified: verified('approveReset') }
+          details: { attributed: attribution.approve?.attributed ?? null, allowance: reads.allowance, expectedFromRun: expected, approveResetVerified: verified('approveReset'), originReason: origin.reason }
         });
       }
     }
@@ -1505,6 +1514,63 @@ export class BrickkenLiveWorkspace {
     if (this.journal.find(run.steps.execute.operationId)?.state === 'semantically_verified') left -= BigInt(this.proposal.amounts.execute);
     if (this.journal.find(run.steps.approveReset.operationId)?.state === 'semantically_verified') left = 0n;
     return left < 0n ? null : left.toString();
+  }
+
+  // The allowance on chain is this run's only if no other approval by the
+  // principal to the executor was recorded since the run's approve landed. The
+  // Approval events of that owner and spender pair, from the approve's block to
+  // the block the cleanup reads use, are read from both sources; the sources
+  // must agree, the run's own approve must be among them in its recorded block,
+  // and every event must belong to a transaction this run signed (its approve
+  // or its reset). Anything else, a foreign event, a disagreement or a source
+  // that cannot answer, leaves the origin unattributed and the value in place.
+  // The principal's nonce at the read block is recorded as a second observation
+  // (R3-F02). Written as evidence for the run.
+  async #allowanceOrigin(runId, run, reads, evidenceName = 'cleanup-allowance-origin') {
+    const { primary, secondary } = this.rpcs;
+    const proposal = this.proposal;
+    const approve = this.journal.find(run.steps.approve.operationId);
+    const result = { checkedAt: isoAt(this.nowMs()), block: reads.block, attributed: false, reason: null, events: null, foreign: [], principalNonce: null };
+    const finish = reason => {
+      result.reason = reason;
+      result.attributed = reason === null;
+      this.#evidence(runId, evidenceName, result);
+      return result;
+    };
+    if (!approve?.confirmation) return finish('APPROVE_NOT_CONFIRMED');
+    const own = new Set(['approve', 'approveReset']
+      .map(step => this.journal.find(run.steps[step].operationId)?.signed?.ethereumTransactionHash).filter(Boolean));
+    const topicOf = address => '0x' + '0'.repeat(24) + address.slice(2);
+    const filter = {
+      address: proposal.token.address, topics: [EVENT_TOPICS.Approval, topicOf(proposal.principal), topicOf(proposal.executor)],
+      fromBlock: approve.confirmation.blockNumber, toBlock: reads.block.number
+    };
+    let logsA;
+    let logsB;
+    try { [logsA, logsB] = await Promise.all([primary.getLogs(filter), secondary.getLogs(filter)]); }
+    catch (error) {
+      result.error = error?.code ?? 'HISTORY_UNAVAILABLE';
+      return finish('HISTORY_UNAVAILABLE');
+    }
+    const summary = logs => logs
+      .map(log => ({ transactionHash: log.transactionHash, blockNumber: log.blockNumber, blockHash: log.blockHash, logIndex: log.logIndex }))
+      .sort((left, right) => (BigInt(left.blockNumber) < BigInt(right.blockNumber) ? -1 : BigInt(left.blockNumber) > BigInt(right.blockNumber) ? 1 :
+        BigInt(left.logIndex) < BigInt(right.logIndex) ? -1 : BigInt(left.logIndex) > BigInt(right.logIndex) ? 1 : 0));
+    result.events = { primary: summary(logsA), secondary: summary(logsB) };
+    if (canonicalJson(result.events.primary) !== canonicalJson(result.events.secondary)) return finish('SOURCE_HISTORY_DISAGREEMENT');
+    const ownApprove = result.events.primary.find(event => event.transactionHash === approve.signed.ethereumTransactionHash);
+    if (!ownApprove) return finish('OWN_APPROVE_NOT_IN_HISTORY');
+    if (ownApprove.blockHash !== approve.confirmation.blockHash) return finish('OWN_APPROVE_REORGANISED');
+    result.foreign = result.events.primary.filter(event => !own.has(event.transactionHash));
+    if (result.foreign.length) return finish('FOREIGN_APPROVAL');
+    try {
+      const ref = { blockHash: reads.block.hash };
+      const [nonceA, nonceB] = await Promise.all([primary.getTransactionCount(proposal.principal, ref), secondary.getTransactionCount(proposal.principal, ref)]);
+      result.principalNonce = { primary: nonceA, secondary: nonceB };
+    } catch (error) {
+      result.principalNonce = { error: error?.code ?? 'UNAVAILABLE' };
+    }
+    return finish(null);
   }
 
   // Cleanup acts only on chain effects it can attribute to this run. A confirmed
@@ -1662,19 +1728,62 @@ export class BrickkenLiveWorkspace {
       assertOwnership: () => this.#requireLease(lease),
       assertCodeIdentity: () => this.#requireCodeIdentity(run, 'write', { evidence: false }),
       // Cleanup writes are remediation and claim no control evidence, so they
-      // are not held back by a control that a later reading withdrew.
-      assertControls: cleanup ? async () => {} : step => this.#requireStepControls(run.runId, step)
+      // are not held back by a control that a later reading withdrew. The
+      // allowance reset is the one cleanup write with a precondition of its own:
+      // the origin of the value is read again right before its signature (ADV4-B3).
+      assertControls: cleanup
+        ? step => (step === 'approveReset' ? this.#requireAllowanceStillOwn(run.runId) : Promise.resolve())
+        : step => this.#requireStepControls(run.runId, step)
     });
+  }
+
+  // Read again at the last boundary before the reset is signed: the allowance on
+  // chain must still be the value the run's writes leave behind and its origin
+  // must still attribute to the run at a fresh two-source block. The reset is
+  // value-blind (approve of zero), so what lands between this reading and the
+  // block that includes the reset is outside what any reading can show; that
+  // window is the inclusion delay of one transaction and nothing wider (ADV4-B3).
+  async #requireAllowanceStillOwn(runId) {
+    const run = this.#run(runId);
+    const at = this.nowMs();
+    // A refusal here is the end of this cleanup attempt, and the next attempt
+    // clears run.stop, so the refusal is written as its own evidence (ADV4b-1).
+    const refuse = (code, message, details) => {
+      this.#evidence(runId, `cleanup-reset-refused-${at}`, { code, at: isoAt(at), ...details });
+      fail(code, message, details);
+    };
+    let reads;
+    try { reads = await this.#mandateAndAllowance(); }
+    catch (error) {
+      const failure = liveFailure(error, 'approveReset');
+      refuse(failure.code, failure.message, { ...failure.details, step: 'approveReset' });
+    }
+    const expected = this.#allowanceLeftByRun(run);
+    const origin = await this.#allowanceOrigin(runId, run, reads, 'cleanup-allowance-origin-sign');
+    if (expected === null || reads.allowance !== expected || !origin.attributed) {
+      refuse('CLEANUP_UNATTRIBUTED_ALLOWANCE',
+        'The allowance on chain changed between the cleanup decision and the reset signature, or its origin no longer attributes to this run, so the reset is not signed. The evidence is kept; the allowance needs a separate decision.',
+        { allowance: reads.allowance, expectedFromRun: expected, originReason: origin.reason, blockHash: reads.block.hash });
+    }
   }
 
   // Every observed control a step rests on must read as canonical from both
   // sources right before the step's bytes are signed (ADV3-01). The controls
   // of a step are the ones whose lifecycle stage the step's signature ends.
   async #requireStepControls(runId, step) {
+    // Every control of the step is read, so each lost one is invalidated in the
+    // run record before the first refusal is raised; a withdrawn control takes
+    // precedence over an unresolved one (R3-F01).
+    let refusal = null;
     for (const controlId of LIVE_CONTROL_IDS) {
       if (CONTROL_DEPENDENT_STEP[controlId] !== step || !this.#run(runId).controls[controlId]?.observed) continue;
-      await this.#requireControlCanonical(runId, controlId);
+      try { await this.#requireControlCanonical(runId, controlId); }
+      catch (error) {
+        if (!(error instanceof BrickkenWorkspaceError) || !['CONTROL_WITHDRAWN', 'CONTROL_UNRESOLVED'].includes(error.code)) throw error;
+        if (refusal === null || (refusal.code === 'CONTROL_UNRESOLVED' && error.code === 'CONTROL_WITHDRAWN')) refusal = error;
+      }
     }
+    if (refusal) throw refusal;
   }
 
   #requireLease(lease) {

@@ -311,7 +311,7 @@ export class FakeRpc {
   constructor(chain, endpointName, faults = {}) {
     this.chain = chain;
     this.endpointName = endpointName;
-    this.faults = { lagBlocks: 0, sendErrors: [], forgeReceipt: null, viewOverride: null, hideBlock: null, tipBlock: null, ...faults };
+    this.faults = { lagBlocks: 0, sendErrors: [], forgeReceipt: null, viewOverride: null, hideBlock: null, tipBlock: null, logsError: null, ...faults };
   }
 
   #visible() {
@@ -400,6 +400,28 @@ export class FakeRpc {
     if (!mined || !this.#visible().some(block => block.hash === mined.blockHash)) return null;
     const receipt = structuredClone(mined.receipt);
     return this.faults.forgeReceipt ? this.faults.forgeReceipt(receipt) : receipt;
+  }
+
+  // Event query over this source's visible blocks, the same filter shape as
+  // SepoliaRpc.getLogs: one address, exact topics with null wildcards, an
+  // inclusive block range. faults.logsError makes the query fail as a source
+  // without the method would.
+  async getLogs({ address, topics, fromBlock, toBlock }) {
+    if (this.faults.logsError) throw new SepoliaRpcError(this.faults.logsError, 'eth_getLogs');
+    const logs = [];
+    for (const block of this.#visible()) {
+      if (BigInt(block.number) < BigInt(fromBlock) || BigInt(block.number) > BigInt(toBlock)) continue;
+      for (const hash of block.txHashes) {
+        const mined = this.chain.transactions.get(hash);
+        if (!mined) continue;
+        for (const log of mined.receipt.logs) {
+          if (log.address !== address) continue;
+          if (topics.some((topic, index) => topic !== null && log.topics[index] !== topic)) continue;
+          logs.push(structuredClone(log));
+        }
+      }
+    }
+    return logs;
   }
 
   async sendRawTransaction(bytes) {

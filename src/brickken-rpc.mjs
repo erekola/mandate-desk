@@ -415,6 +415,32 @@ export class SepoliaRpc {
     });
   }
 
+  // Bounded event query: one contract address, exact topics (null is a
+  // wildcard position), an inclusive block-number range of at most 100 000
+  // blocks, at most 10 000 logs back. Cleanup reads the Approval history of the
+  // principal and executor pair from both sources with it, to attribute the
+  // allowance on chain to the run's own approve (R3-F02).
+  async getLogs({ address, topics, fromBlock, toBlock }) {
+    const method = 'eth_getLogs';
+    const addr = inputAddress(address, method);
+    if (!Array.isArray(topics) || topics.length === 0 || topics.length > 4) fail('INPUT_INVALID', method);
+    const filterTopics = topics.map(topic => (topic === null ? null : inputHash(topic, method)));
+    const from = BigInt(inputDecimalUint(fromBlock, method));
+    const to = BigInt(inputDecimalUint(toBlock, method));
+    if (from > to || to - from > 100_000n) fail('INPUT_INVALID', method);
+    const result = await this.#request(method, [{ address: addr, topics: filterTopics, fromBlock: '0x' + from.toString(16), toBlock: '0x' + to.toString(16) }]);
+    if (!Array.isArray(result) || result.length > 10_000) fail('RESPONSE_INVALID', method);
+    const logs = result.map(log => normalizeRpcLog(log, method));
+    // A log outside the filter, by address, block range or a fixed topic, is a
+    // provider fault and not evidence (ADV4-C1).
+    for (const log of logs) {
+      const height = BigInt(log.blockNumber);
+      if (log.address !== addr || height < from || height > to || log.removed === true ||
+          filterTopics.some((topic, index) => topic !== null && log.topics[index] !== topic)) fail('RESPONSE_INVALID', method);
+    }
+    return deepFreeze(logs);
+  }
+
   async sendRawTransaction(signedHex) {
     const method = 'eth_sendRawTransaction';
     if (typeof signedHex !== 'string' || !/^0x(?:[0-9a-fA-F]{2})+$/.test(signedHex) ||

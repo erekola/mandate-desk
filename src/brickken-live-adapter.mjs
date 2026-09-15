@@ -593,10 +593,12 @@ export class LiveStepExecutor {
   // recorded transaction to its receipt but never marks a semantic result: a
   // process that runs other bytes than the run was approved for may read the
   // chain, and a semantic claim is made only by the approved code (R2-F03).
-  // assertControls(step) is called right before the signature of a step, after
-  // the reads that precede it, so the read-only controls the step rests on are
-  // canonical at the moment the bytes are signed and not only when the phase
-  // began (ADV3-01).
+  // assertControls(step) is called inside #sign, after the last nonce reads and
+  // the decision whether to prepare again, right before signer.sign, so the
+  // read-only controls the step rests on are read from both sources at the last
+  // action boundary and not only when the phase began (ADV3-01, R3-F01). It is
+  // a fresh two-source observation, not an atomic guarantee that the chain
+  // cannot change after it.
   constructor({
     proposal, rpcs, signer, journal, approvalSha256,
     now = () => Date.now(),
@@ -680,9 +682,6 @@ export class LiveStepExecutor {
             if (!this.#writesAllowed()) fail('APPROVAL_EXPIRED', { layer: 'local-validation', step, notAfter: this.notAfter });
             const blocked = await this.#dependencyBlock(runId, step);
             if (blocked) { await this.sleep(this.pollMs); return this.#outcome(step, record, false, { waitingFor: blocked }); }
-            // The controls this step rests on are read again from both sources
-            // right here, after the dependency reads and before the signature.
-            await this.assertControls(step);
             record = await this.#sign(step, record); break;
           }
           case 'signed':
@@ -909,7 +908,11 @@ export class LiveStepExecutor {
     // Nothing is signed yet, so a stale nonce or window is replaced by a fresh preparation.
     if (latest !== record.transaction.nonce || pending !== latest || staleWindow) return this.#prepare(step, record.operationId);
     plan.checkLiveTransaction(this.proposal, step, record.transaction, { nonce: latest });
-    // The nonce reads awaited: ownership lost meanwhile stops here, before the signer is asked for anything.
+    // The last reads before the signature are done: the controls this step rests
+    // on are read from both sources now (R3-F01), and then ownership and the code
+    // identity are checked once more, so nothing awaited stands between these
+    // checks and the request to the signer.
+    await this.assertControls(step);
     this.#beforeWrite();
     const result = await this.signer.sign(step, record.transaction);
     if (typeof result?.signedTransaction !== 'string') fail('SIGNER_RESPONSE_INVALID', { layer: 'signer', step });
