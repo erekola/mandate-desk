@@ -75,7 +75,7 @@ import {
   runLiveControl
 } from './brickken-live-adapter.mjs';
 import { LiveLockError, acquireLiveLock } from './live-lock.mjs';
-import { evaluateLiveRunCompleteness } from './brickken-live-completeness.mjs';
+import { evaluateLiveRunCompleteness, requiredEvidencePackageMembers } from './brickken-live-completeness.mjs';
 
 const PROPOSAL_FILE = boundedPath(path.join(ROOT, 'integration', 'demo-proposal.json'));
 const WORKSPACE_FILE = 'brickken-workspace.json';
@@ -699,8 +699,25 @@ const STOP_DETAIL_KEYS = [
   'balanceWei', 'steps', 'blockHash', 'purpose', 'notAfter', 'attempts', 'journalState', 'backoffUntil', 'lockFile',
   'controlIds', 'missing', 'to', 'from', 'reason', 'required', 'confirmationsPrimary', 'confirmationsSecondary',
   'dependencyOperationId', 'codeIdentitySha256', 'processCodeIdentitySha256', 'diskCodeIdentitySha256', 'phase',
-  'platform', 'packageDirectory', 'attributed', 'mandate'
+  'platform', 'packageDirectory', 'attributed', 'mandate', 'tracked', 'allowance', 'expectedFromRun', 'approveResetVerified', 'member'
 ];
+// Why a recording binding refuses an exported package (R2-F04). One code, one
+// reason field, so a caller reads the same failure whether a member is damaged,
+// a member is missing or the package describes an earlier state of the run.
+const PACKAGE_MISMATCH_REASONS = Object.freeze({
+  SUMS_UNREADABLE: 'its SHA256SUMS.json could not be read as a checksum table.',
+  MEMBER_MISSING: 'a member the checksum table or the completeness rule names is missing.',
+  MEMBER_HASH: 'a member does not match its checksum.',
+  MEMBER_UNREADABLE: 'a member could not be read as JSON.',
+  OTHER_RUN: 'the package names another run, another approval or another code identity.',
+  INCOMPLETE_EXPORT: 'the package was exported as incomplete.',
+  STALE_TRANSACTION: 'a write of the run now reads in another block than the package records.',
+  STALE_FINALITY: 'the finality result of the run differs from the one the package records.',
+  STALE_CONTROL: 'a control observation of the run differs from the package.'
+});
+function uintEqual(left, right) {
+  try { return BigInt(left) === BigInt(right); } catch { return false; }
+}
 
 function liveDocumentHash(value) {
   return sha256Canonical({ schemaVersion: value.schemaVersion, kind: value.kind, proposalHash: value.proposalHash, runs: value.runs });
@@ -1045,7 +1062,15 @@ export class BrickkenLiveWorkspace {
       if (!this.#trackableSteps(run).length) {
         fail('APPROVAL_EXPIRED', 'The run approval expired and no recorded transaction is left to track. Further writes need a new approval.');
       }
-      return this.#start(run, run.phase, status, lease => this.#trackOnly(runId, lease), { trackingOnly: true });
+      return this.#start(run, run.phase, status, (lease, context) => this.#trackOnly(runId, lease, context), { trackingOnly: true });
+    }
+    // A process whose source bytes differ from the approved identity writes
+    // nothing, but a transaction already on its way is still followed by reads
+    // and its receipt recorded; the semantic result waits for the approved code (R2-F03).
+    const identity = this.#requireCodeIdentity(run, run.phase, { evidence: false, tolerate: true });
+    if (!identity.match) {
+      if (!this.#trackableSteps(run).length) this.#codeIdentityFailure(identity);
+      return this.#start(run, run.phase, status, (lease, context) => this.#trackOnly(runId, lease, context), { trackingOnly: true });
     }
     const work = {
       'owner-setup': lease => this.#ownerSetup(runId, lease),
@@ -1093,6 +1118,12 @@ export class BrickkenLiveWorkspace {
   // package's SHA256SUMS.json. The package must name this run, this approval,
   // this code identity, a complete export and the journal's transactions, so
   // the video and the package identify each other byte for byte (A1-F11).
+  // Every member the checksum table lists must be present with its checksum,
+  // every member the completeness rule requires must be listed, and the
+  // package must describe the run as it is now: the same block for every
+  // write, the same control observations and the same finality result. A
+  // damaged member or a package exported before a later chain reading is
+  // refused with the reason named (R2-F04).
   recordingBinding(runId, { packageDirectory = null } = {}) {
     this.#requireRole('owner');
     const run = this.#run(runId);
@@ -1120,19 +1151,50 @@ export class BrickkenLiveWorkspace {
       };
     });
     const sumsBytes = fs.readFileSync(sumsFile);
-    let table;
-    try {
-      const sums = JSON.parse(sumsBytes.toString('utf8'));
-      const tableBytes = fs.readFileSync(path.join(packagePath, 'transactions.json'));
-      if (sums['transactions.json'] !== createHash('sha256').update(tableBytes).digest('hex')) throw new Error('SUMS');
-      table = JSON.parse(tableBytes.toString('utf8'));
-    } catch {
-      fail('RECORDING_PACKAGE_MISMATCH', 'The evidence package could not be read, or its transaction table does not match its SHA256SUMS.json.', { packageDirectory: directory });
+    const mismatch = (reason, extra = {}) => fail('RECORDING_PACKAGE_MISMATCH',
+      `The evidence package is not a complete, intact and current export of this run: ${PACKAGE_MISMATCH_REASONS[reason]} Export the package again.`,
+      { packageDirectory: directory, reason, ...extra });
+    let sums = null;
+    try { sums = JSON.parse(sumsBytes.toString('utf8')); } catch { sums = null; }
+    if (!plain(sums)) mismatch('SUMS_UNREADABLE');
+    const memberPattern = /^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/;
+    const files = {};
+    for (const [member, expected] of Object.entries(sums)) {
+      if (!memberPattern.test(member) || member.split('/').some(part => part === '.' || part === '..') ||
+          typeof expected !== 'string' || !/^[a-f0-9]{64}$/.test(expected)) mismatch('SUMS_UNREADABLE');
+      const file = boundedPath(path.join(packagePath, ...member.split('/')));
+      const stat = fs.lstatSync(file, { throwIfNoEntry: false });
+      if (!stat || !stat.isFile()) mismatch('MEMBER_MISSING', { member });
+      const bytes = fs.readFileSync(file);
+      if (createHash('sha256').update(bytes).digest('hex') !== expected) mismatch('MEMBER_HASH', { member });
+      files[member] = bytes;
     }
-    const named = item => table.transactions.find(row => row.operationId === item.operationId)?.transactionHash === item.transactionHash;
-    if (!plain(table) || table.runId !== run.runId || table.approvalSha256 !== run.approvalSha256 || table.codeIdentitySha256 !== run.codeIdentitySha256 ||
-        table.complete !== true || !Array.isArray(table.transactions) || !transactions.every(named)) {
-      fail('RECORDING_PACKAGE_MISMATCH', 'The evidence package names another run, another approval, another code identity, an incomplete export or other transactions than the journal.', { packageDirectory: directory });
+    for (const member of requiredEvidencePackageMembers(run)) if (!files[member]) mismatch('MEMBER_MISSING', { member });
+    const parse = member => {
+      try { return JSON.parse(files[member].toString('utf8')); } catch { return mismatch('MEMBER_UNREADABLE', { member }); }
+    };
+    const table = parse('transactions.json');
+    const packageRun = parse('run.json');
+    if (!plain(table) || !plain(packageRun) || table.runId !== run.runId || packageRun.runId !== run.runId ||
+        table.approvalSha256 !== run.approvalSha256 || packageRun.approvalSha256 !== run.approvalSha256 ||
+        table.codeIdentitySha256 !== run.codeIdentitySha256 || packageRun.codeIdentitySha256 !== run.codeIdentitySha256 ||
+        !Array.isArray(table.transactions) || !Array.isArray(packageRun.controls)) mismatch('OTHER_RUN');
+    if (table.complete !== true || packageRun.complete !== true) mismatch('INCOMPLETE_EXPORT');
+    for (const item of transactions) {
+      const row = table.transactions.find(candidate => candidate.operationId === item.operationId);
+      if (!plain(row) || row.transactionHash !== item.transactionHash || !uintEqual(row.blockNumber, item.blockNumber) || row.blockHash !== item.blockHash) {
+        mismatch('STALE_TRANSACTION', { operationId: item.operationId, step: item.step });
+      }
+    }
+    // The finality result is compared by what it states, every entry and the
+    // overall flag; the reading time is metadata and a later reading with the
+    // same result keeps the package current.
+    const finalityStatement = value => canonicalJson({ allFinalized: value?.allFinalized ?? null, entries: value?.entries ?? null });
+    if (finalityStatement(packageRun.finality) !== finalityStatement(run.finality)) mismatch('STALE_FINALITY');
+    for (const id of LIVE_CONTROL_IDS) {
+      const control = packageRun.controls.find(item => plain(item) && item.id === id);
+      if (!control || !uintEqual(control.blockNumber, run.controls[id].blockNumber) || control.blockHash !== run.controls[id].blockHash ||
+          control.observedAt !== run.controls[id].observedAt) mismatch('STALE_CONTROL', { controlId: id });
     }
     return {
       runId: run.runId,
@@ -1217,19 +1279,34 @@ export class BrickkenLiveWorkspace {
       fail('EXECUTION_NOT_AVAILABLE', 'The owner setup for this operation is not complete, or the run moved past execution.');
     }
     const expired = this.nowMs() >= Date.parse(run.notAfter);
-    // After expiry an already broadcast execute is still tracked by reads; nothing new is signed or sent.
-    const trackingOnly = expired && existing !== null && LIVE_TRACKING_STATES.includes(existing.state);
+    // The agent's own process must run the approved code; the owner's process
+    // cannot vouch for it. After expiry, or while this process runs other bytes
+    // than the run was approved for, an already broadcast execute is still
+    // tracked by reads: nothing new is signed or sent, and a changed process
+    // records the receipt but never a semantic result (R2-F03).
+    const identity = this.#requireCodeIdentity(run, 'agent-execute', { tolerate: true });
+    const trackable = existing !== null && LIVE_TRACKING_STATES.includes(existing.state);
+    const trackingOnly = (expired || !identity.match) && trackable;
     if (expired && !trackingOnly) fail('APPROVAL_EXPIRED', 'The run approval expired.');
-    // The agent's own process must run the approved code; the owner's process cannot vouch for it.
-    this.#requireCodeIdentity(run, 'agent-execute');
+    if (!identity.match && !trackingOnly) this.#codeIdentityFailure(identity);
     if (!trackingOnly) await this.#requireSigner(run);
     const lease = this.#acquireRunLock('agent-execute', run.runId);
     try {
-      if (!trackingOnly && !existing) await this.#requireControlCanonical(run.runId, 'control-transaction-cap');
+      // The transaction-cap control must read as canonical from both sources
+      // before the first execute signature. A pending preparation carries no
+      // signed bytes, so a retry after a failed signature is still before the
+      // signature and gets the same check as a first attempt (R2-F01).
+      if (!trackingOnly && !existing?.signed) await this.#requireControlCanonical(run.runId, 'control-transaction-cap');
       this.#update(run.runId, item => { item.status = 'agent-executing'; item.phase = 'agent-execute'; item.stop = null; });
-      const executor = this.#executor(run, lease, { trackingOnly });
+      const executor = this.#executor(run, lease, { trackingOnly, semanticVerification: identity.match });
       const outcome = await executor.advance({ runId: run.runId, step: 'execute', deadlineMs: LIVE_AGENT_CALL_MS });
       if (outcome.done) this.#update(run.runId, item => { item.status = 'awaiting-owner-revocation'; item.phase = null; });
+      else if (trackingOnly && !identity.match) {
+        fail('CODE_IDENTITY_MISMATCH',
+          'The execute transaction was tracked by reads only, because this process runs other source bytes than the run was approved for. Nothing was signed or sent and no semantic result was recorded; restore the approved code to continue.',
+          { step: 'execute', phase: 'tracking', transactionHash: outcome.transactionHash, journalState: outcome.state, attempts: outcome.attempts,
+            codeIdentitySha256: identity.codeIdentitySha256, processCodeIdentitySha256: identity.processCodeIdentitySha256, diskCodeIdentitySha256: identity.diskCodeIdentitySha256 });
+      }
       else if (trackingOnly) {
         fail('RECOVERY_AUTHORIZATION_REQUIRED',
           'The approval expired while the execute transaction is unresolved. Its recorded bytes are tracked by reads only; sending them again needs a recovery authorization for exactly this hash.',
@@ -1288,7 +1365,9 @@ export class BrickkenLiveWorkspace {
       await this.#recheckAndReconfirm(executor, runId);
     }
     if (!this.#run(runId).controls['control-transaction-cap']?.passed) {
-      if (this.journal.find(run.steps.execute.operationId)) fail('CONTROL_ORDER', 'The transaction-cap control must run before execute.');
+      // Only signed execute bytes end the stage the control belongs to; a pending
+      // preparation may wait for a control observed again (R2-F01).
+      if (this.journal.find(run.steps.execute.operationId)?.signed) fail('CONTROL_ORDER', 'The transaction-cap control must run before execute.');
       await this.#control(runId, 'control-transaction-cap', lease);
     }
     this.#update(runId, item => { item.status = 'awaiting-agent'; item.phase = null; });
@@ -1301,13 +1380,15 @@ export class BrickkenLiveWorkspace {
     await this.#recheckAndReconfirm(executor, runId);
     for (const controlId of ['control-cumulative-cap', 'control-before-revoke']) {
       if (this.#run(runId).controls[controlId]?.passed) continue;
-      if (this.journal.find(run.steps.revoke.operationId)) fail('CONTROL_ORDER', 'The pre-revocation controls must run before revoke.');
+      // Only signed revoke bytes end the stage; a pending preparation may wait
+      // for a control observed again (R2-F01, ADV3-01).
+      if (this.journal.find(run.steps.revoke.operationId)?.signed) fail('CONTROL_ORDER', 'The pre-revocation controls must run before revoke.');
       await this.#control(runId, controlId, lease);
     }
     await this.#advanceUntilDone(executor, runId, 'revoke');
     await this.#recheckAndReconfirm(executor, runId);
     if (!this.#run(runId).controls['control-after-revoke']?.passed) {
-      if (this.journal.find(run.steps.approveReset.operationId)) fail('CONTROL_ORDER', 'The revocation control must run before the allowance reset.');
+      if (this.journal.find(run.steps.approveReset.operationId)?.signed) fail('CONTROL_ORDER', 'The revocation control must run before the allowance reset.');
       await this.#control(runId, 'control-after-revoke', lease);
     }
     await this.#advanceUntilDone(executor, runId, 'approveReset');
@@ -1379,17 +1460,25 @@ export class BrickkenLiveWorkspace {
       }
     }
     if (reads.allowance !== '0') {
-      if (proven('approve')) {
-        if (!verified('approveReset')) {
-          await this.#advanceUntilDone(executor, runId, 'approveReset');
-          allowanceResetByCleanup = true;
-          reads = await this.#mandateAndAllowance();
-        }
+      // The reset removes only an allowance this run put there: the run's approve
+      // is proven, the run's own reset is not verified, and the value on chain is
+      // what the run's writes leave behind, the approved amount less the amount a
+      // verified execute consumed. A later approval by the principal to the same
+      // executor changes that value; the old approve's receipt does not make the
+      // new value this run's, so it is left in place and named (R2-F02). Two
+      // approvals of the same amount are indistinguishable by state, and a reset
+      // then removes a value equal to the run's own.
+      const expected = this.#allowanceLeftByRun(run);
+      const attributable = proven('approve') && !verified('approveReset') && expected !== null && reads.allowance === expected;
+      if (attributable) {
+        await this.#advanceUntilDone(executor, runId, 'approveReset');
+        allowanceResetByCleanup = true;
+        reads = await this.#mandateAndAllowance();
       } else {
         problems.push({
           code: 'CLEANUP_UNATTRIBUTED_ALLOWANCE',
           message: 'A non-zero allowance on chain is not attributed to this run\'s approve, so cleanup does not reset it. The evidence is kept; the allowance needs a separate decision.',
-          details: { attributed: attribution.approve?.attributed ?? null }
+          details: { attributed: attribution.approve?.attributed ?? null, allowance: reads.allowance, expectedFromRun: expected, approveResetVerified: verified('approveReset') }
         });
       }
     }
@@ -1403,6 +1492,19 @@ export class BrickkenLiveWorkspace {
     this.#evidence(runId, 'cleanup', cleanup);
     this.#update(runId, item => { item.cleanup = cleanup; item.status = 'stopped'; item.phase = null; });
     if (problems.length) fail(problems[0].code, problems[0].message, problems[0].details);
+  }
+
+  // The allowance this run's own writes leave on chain: the amount of its
+  // approve calldata, less the execute amount once the execute is semantically
+  // verified, and zero once its own reset is verified. null when the run has no
+  // confirmed approve to reason from.
+  #allowanceLeftByRun(run) {
+    const approve = this.journal.find(run.steps.approve.operationId);
+    if (!approve?.signed || !approve.confirmation) return null;
+    let left = BigInt('0x' + approve.transaction.data.slice(74, 138));
+    if (this.journal.find(run.steps.execute.operationId)?.state === 'semantically_verified') left -= BigInt(this.proposal.amounts.execute);
+    if (this.journal.find(run.steps.approveReset.operationId)?.state === 'semantically_verified') left = 0n;
+    return left < 0n ? null : left.toString();
   }
 
   // Cleanup acts only on chain effects it can attribute to this run. A confirmed
@@ -1465,9 +1567,10 @@ export class BrickkenLiveWorkspace {
 
   async #start(run, phase, status, work, { trackingOnly = false } = {}) {
     if (this.#jobs.has(run.runId)) fail('LIVE_JOB_RUNNING', 'A live phase is already running for this run.');
-    // Every phase, tracking-only included, runs only on the approved code: a
-    // changed process would otherwise mark new semantic results and evidence.
-    this.#requireCodeIdentity(run, phase);
+    // Every write-capable phase runs only on the approved code. A tracking-only
+    // phase may run on other bytes, but then it only reads: recorded transactions
+    // are followed to their receipts and no semantic result is marked (R2-F03).
+    const identity = this.#requireCodeIdentity(run, phase, { tolerate: trackingOnly });
     if (!trackingOnly) {
       if (this.nowMs() >= Date.parse(run.notAfter)) fail('APPROVAL_EXPIRED', 'The run approval expired.');
       await this.#requireSigner(run);
@@ -1480,7 +1583,7 @@ export class BrickkenLiveWorkspace {
       throw error;
     }
     const job = (async () => {
-      try { await work(lease); }
+      try { await work(lease, { codeIdentityMatch: identity.match, identity }); }
       catch (error) { this.#recordStop(run.runId, error); }
       finally {
         lease.release();
@@ -1507,8 +1610,10 @@ export class BrickkenLiveWorkspace {
   // The run's approved code identity must equal both the identity of this
   // process, read when it started, and the identity on disk right now. Anything
   // else stops with CODE_IDENTITY_MISMATCH before a preparation, a signature or
-  // a send; recorded transactions and existing evidence stay as they are.
-  #requireCodeIdentity(run, phase, { evidence = true } = {}) {
+  // a send; recorded transactions and existing evidence stay as they are. With
+  // tolerate the observation is returned with match false instead, for the
+  // read-only tracking that a changed process may still do (R2-F03).
+  #requireCodeIdentity(run, phase, { evidence = true, tolerate = false } = {}) {
     const expected = run.codeIdentitySha256 ?? null;
     let disk;
     try { disk = computeCodeIdentity().codeIdentitySha256; }
@@ -1521,11 +1626,13 @@ export class BrickkenLiveWorkspace {
       match: expected !== null && expected === PROCESS_CODE_IDENTITY_SHA256 && expected === disk
     };
     if (evidence) this.#evidence(run.runId, `code-identity-${phase}-${this.nowMs()}`, observation);
-    if (!observation.match) {
-      fail('CODE_IDENTITY_MISMATCH', 'The source code identity differs from the one this run was approved for. Nothing is prepared, signed or sent; restore the approved code, or prepare a fresh plan from the current code.',
-        { phase, codeIdentitySha256: expected, processCodeIdentitySha256: PROCESS_CODE_IDENTITY_SHA256, diskCodeIdentitySha256: disk });
-    }
+    if (!observation.match && !tolerate) this.#codeIdentityFailure(observation);
     return observation;
+  }
+
+  #codeIdentityFailure(observation) {
+    fail('CODE_IDENTITY_MISMATCH', 'The source code identity differs from the one this run was approved for. Nothing is prepared, signed or sent; restore the approved code, or prepare a fresh plan from the current code.',
+      { phase: observation.phase, codeIdentitySha256: observation.codeIdentitySha256, processCodeIdentitySha256: observation.processCodeIdentitySha256, diskCodeIdentitySha256: observation.diskCodeIdentitySha256 });
   }
 
   // A recheck withdraws the verification of a step whose block changed. Such a
@@ -1545,16 +1652,29 @@ export class BrickkenLiveWorkspace {
   // lease is the run lock lease of the calling phase; the executor refuses to
   // act once this process no longer holds it. trackingOnly and cleanup select
   // the read-only and the cleanup revocation behaviour of the adapter.
-  #executor(run, lease = null, { trackingOnly = false, cleanup = false } = {}) {
+  #executor(run, lease = null, { trackingOnly = false, cleanup = false, semanticVerification = true } = {}) {
     return new LiveStepExecutor({
       proposal: this.proposal, rpcs: this.rpcs, signer: this.signer, journal: this.journal,
       approvalSha256: run.approvalSha256, now: this.nowMs, sleep: this.sleep, pollMs: this.pollMs,
       verifySignedTransaction: this.verifySignedTransaction,
       onEvidence: (name, value) => this.#evidence(run.runId, name, value),
-      notAfter: run.notAfter, trackingOnly, cleanup,
+      notAfter: run.notAfter, trackingOnly, cleanup, semanticVerification,
       assertOwnership: () => this.#requireLease(lease),
-      assertCodeIdentity: () => this.#requireCodeIdentity(run, 'write', { evidence: false })
+      assertCodeIdentity: () => this.#requireCodeIdentity(run, 'write', { evidence: false }),
+      // Cleanup writes are remediation and claim no control evidence, so they
+      // are not held back by a control that a later reading withdrew.
+      assertControls: cleanup ? async () => {} : step => this.#requireStepControls(run.runId, step)
     });
+  }
+
+  // Every observed control a step rests on must read as canonical from both
+  // sources right before the step's bytes are signed (ADV3-01). The controls
+  // of a step are the ones whose lifecycle stage the step's signature ends.
+  async #requireStepControls(runId, step) {
+    for (const controlId of LIVE_CONTROL_IDS) {
+      if (CONTROL_DEPENDENT_STEP[controlId] !== step || !this.#run(runId).controls[controlId]?.observed) continue;
+      await this.#requireControlCanonical(runId, controlId);
+    }
   }
 
   #requireLease(lease) {
@@ -1570,6 +1690,11 @@ export class BrickkenLiveWorkspace {
       const outcome = await executor.advance({ runId, step, deadlineMs: 60_000 });
       this.#update(runId, item => { item.updatedAt = isoAt(this.nowMs()); });
       if (outcome.done) return outcome;
+      if (outcome.waitingFor?.reason === 'CODE_IDENTITY_MISMATCH') {
+        fail('CODE_IDENTITY_MISMATCH',
+          `The ${step} transaction is confirmed on both sources and its receipt is recorded. Its semantic verification waits for the approved code, because this process runs other source bytes than the run was approved for.`,
+          { step, phase: 'verify', transactionHash: outcome.transactionHash, journalState: outcome.state });
+      }
       if (this.nowMs() - started > limit) {
         const details = { step, transactionHash: outcome.transactionHash, journalState: outcome.state, attempts: outcome.attempts, backoffUntil: outcome.backoffUntil };
         if (outcome.waitingFor) {
@@ -1682,11 +1807,30 @@ export class BrickkenLiveWorkspace {
   // Tracking-only resume after the approval expired: recorded transactions are
   // followed by reads and verified if they land; nothing is prepared, signed or
   // sent. The run then stops with APPROVAL_EXPIRED, because every further write
-  // needs a new approval.
-  async #trackOnly(runId, lease) {
+  // needs a new approval. When this process does not carry the approved code
+  // identity, every trackable step is still followed by reads as far as its
+  // receipt, no semantic result is marked, and the run stops with the mismatch
+  // and the state each step reached (R2-F03).
+  async #trackOnly(runId, lease, { codeIdentityMatch = true, identity = null } = {}) {
     const run = this.#run(runId);
-    const executor = this.#executor(run, lease, { trackingOnly: true });
-    for (const step of this.#trackableSteps(run)) await this.#advanceUntilDone(executor, runId, step);
+    const executor = this.#executor(run, lease, { trackingOnly: true, semanticVerification: codeIdentityMatch });
+    const tracked = [];
+    for (const step of this.#trackableSteps(run)) {
+      let code = null;
+      try { await this.#advanceUntilDone(executor, runId, step); }
+      catch (error) {
+        if (codeIdentityMatch) throw error;
+        code = liveFailure(error, step).code;
+      }
+      const record = this.journal.find(run.steps[step].operationId);
+      tracked.push({ step, code, journalState: record?.state ?? null, transactionHash: record?.signed?.ethereumTransactionHash ?? null });
+    }
+    if (!codeIdentityMatch) {
+      fail('CODE_IDENTITY_MISMATCH',
+        'Tracking finished by reads only. This process runs other source bytes than the run was approved for, so nothing was prepared, signed or sent and no semantic result was recorded; restore the approved code to continue.',
+        { phase: 'tracking', tracked, codeIdentitySha256: identity?.codeIdentitySha256 ?? null,
+          processCodeIdentitySha256: identity?.processCodeIdentitySha256 ?? null, diskCodeIdentitySha256: identity?.diskCodeIdentitySha256 ?? null });
+    }
     fail('APPROVAL_EXPIRED', 'Tracking finished. The run approval expired, so every further write needs a new approval.');
   }
 
@@ -1764,8 +1908,10 @@ export class BrickkenLiveWorkspace {
     });
     for (const entry of lost) this.#evidence(runId, `${entry.controlId}-invalidated-${this.nowMs()}`, { ...entry, invalidatedAt: at });
     const current = this.#run(runId);
+    // A pending preparation carries no signed bytes, so the stage it belongs
+    // to has not ended and the control can be observed again (R2-F01).
     const irreplaceable = lost.map(entry => entry.controlId)
-      .filter(id => this.journal.find(current.steps[CONTROL_DEPENDENT_STEP[id]].operationId));
+      .filter(id => this.journal.find(current.steps[CONTROL_DEPENDENT_STEP[id]].operationId)?.signed);
     if (!irreplaceable.length) return lost;
     const message = 'A read-only control block left the canonical chain after the write that depended on it. A later measurement cannot replace that evidence: the run is incomplete as evidence and needs cleanup or a new approval.';
     if (!stopRun) fail('CONTROL_EVIDENCE_LOST', message, { controlIds: irreplaceable });
@@ -1780,12 +1926,22 @@ export class BrickkenLiveWorkspace {
     return lost;
   }
 
-  // Before the first execute attempt the transaction-cap control must still be
-  // canonical; otherwise the owner observes it again by resuming setup.
+  // Before the signature of the write that rests on it, a control must still
+  // be canonical on both sources; otherwise the owner observes it again by
+  // resuming the phase that owns it (setup for the transaction-cap control,
+  // revocation for the other three). A control that has no valid result right
+  // now, because a finality refresh withdrew it before any dependent bytes
+  // existed, refuses the same way (R2-F01, ADV3-01).
   async #requireControlCanonical(runId, controlId) {
     const run = this.#run(runId);
     const control = run.controls[controlId];
-    if (!control?.observed || control.passed !== true) return;
+    const step = CONTROL_DEPENDENT_STEP[controlId];
+    const ownerPhase = step === 'execute' ? 'owner-setup' : STEP_PHASE[step];
+    const resumes = ownerPhase === 'owner-setup' ? 'setup' : 'revocation';
+    if (!control?.observed || control.passed !== true || control.canonical === false) {
+      this.#update(runId, item => { item.phase = ownerPhase; });
+      fail('CONTROL_WITHDRAWN', `The ${controlId} control has no valid result right now. The owner resumes ${resumes} to observe the control again.`, { controlIds: [controlId] });
+    }
     const query = { controlId, blockNumber: control.blockNumber, blockHash: control.blockHash };
     let [result] = await checkControlCanonicity({ rpcs: this.rpcs, controls: [query] });
     // A source that has no block at the control height yet gets a bounded wait
@@ -1798,16 +1954,16 @@ export class BrickkenLiveWorkspace {
     if (result.canonical === true) return;
     if (result.canonical === null) {
       // No source disagrees, but both did not confirm: nothing is decided from
-      // that. The control keeps its result and the agent calls execute again.
-      this.#update(runId, item => { item.phase = 'agent-execute'; });
-      fail('CONTROL_UNRESOLVED', `A read source did not return the ${controlId} block, so its canonicity is unresolved right now. Nothing was signed; call execute_approved again once both sources answer.`, { controlIds: [controlId] });
+      // that. The control keeps its result and the same phase is called again.
+      this.#update(runId, item => { item.phase = STEP_PHASE[step]; });
+      fail('CONTROL_UNRESOLVED', `A read source did not return the ${controlId} block, so its canonicity is unresolved right now. Nothing was signed; continue the ${step} step again once both sources answer.`, { controlIds: [controlId] });
     }
     const at = isoAt(this.nowMs());
     this.#update(runId, item => {
       item.controls[controlId] = { ...item.controls[controlId], passed: false, canonical: false, invalidatedAt: at, invalidationReason: 'BLOCK_NOT_CANONICAL' };
-      item.phase = 'owner-setup';
+      item.phase = ownerPhase;
     });
-    fail('CONTROL_WITHDRAWN', `The ${controlId} block left the canonical chain before execute. The owner resumes setup to observe the control again.`, { controlIds: [controlId] });
+    fail('CONTROL_WITHDRAWN', `The ${controlId} block left the canonical chain before ${step}. The owner resumes ${resumes} to observe the control again.`, { controlIds: [controlId] });
   }
 
   #recordStop(runId, error, step = null) {

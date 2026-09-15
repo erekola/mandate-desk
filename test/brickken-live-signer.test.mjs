@@ -522,12 +522,17 @@ test('LiveSigner rejects an edited approval document', () => {
 // ---------------------------------------------------------------------------
 // 8. Static checks of the loopback HTTP wrapper (never spawned)
 
-test('tools/live-signer.mjs binds 127.0.0.1, rejects an Origin header, compares tokens in constant time and never logs the apiKey variable', () => {
+test('tools/live-signer.mjs binds 127.0.0.1, its request handler in src/live-signer-http.mjs rejects an Origin header and compares tokens in constant time, and the wrapper never logs the apiKey variable', () => {
   const source = fs.readFileSync(new URL('../tools/live-signer.mjs', import.meta.url), 'utf8');
+  // The handler moved to src/live-signer-http.mjs in the third fix round (R2-F05);
+  // the wrapper must build its server from that module and nothing else.
+  const handler = fs.readFileSync(new URL('../src/live-signer-http.mjs', import.meta.url), 'utf8');
   assert.match(source, /server\.listen\(0, '127\.0\.0\.1'/);
-  assert.match(source, /req\.headers\.origin !== undefined/);
-  assert.match(source, /import\s*\{[^}]*\btimingSafeEqual\b[^}]*\}\s*from\s*'node:crypto';/);
-  assert.match(source, /timingSafeEqual\(presented, expected\)/);
+  assert.match(source, /http\.createServer\(createSignerRequestHandler\(/);
+  assert.doesNotMatch(source, /req\.headers/);
+  assert.match(handler, /req\.headers\.origin !== undefined/);
+  assert.match(handler, /import\s*\{[^}]*\btimingSafeEqual\b[^}]*\}\s*from\s*'node:crypto';/);
+  assert.match(handler, /timingSafeEqual\(presented, expected\)/);
   const consoleLines = source.split('\n').filter(line => line.includes('console.'));
   assert.ok(consoleLines.length > 0, 'expected the wrapper to print some startup information');
   assert.ok(consoleLines.every(line => !line.includes('apiKey')), 'the apiKey variable must never reach a console call');

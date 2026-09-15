@@ -589,6 +589,14 @@ export class LiveStepExecutor {
   // awaits that precede them, so a displaced run lock stops the step instead of
   // continuing (A1-F03). assertCodeIdentity is called at the same points so a
   // changed source file stops the step before a signature or a send (N5).
+  // semanticVerification false opens a tracking-only executor that follows a
+  // recorded transaction to its receipt but never marks a semantic result: a
+  // process that runs other bytes than the run was approved for may read the
+  // chain, and a semantic claim is made only by the approved code (R2-F03).
+  // assertControls(step) is called right before the signature of a step, after
+  // the reads that precede it, so the read-only controls the step rests on are
+  // canonical at the moment the bytes are signed and not only when the phase
+  // began (ADV3-01).
   constructor({
     proposal, rpcs, signer, journal, approvalSha256,
     now = () => Date.now(),
@@ -599,12 +607,16 @@ export class LiveStepExecutor {
     notAfter = null,
     trackingOnly = false,
     cleanup = false,
+    semanticVerification = true,
     assertOwnership = () => {},
-    assertCodeIdentity = () => {}
+    assertCodeIdentity = () => {},
+    assertControls = async () => {}
   }) {
     if (!/^[a-f0-9]{64}$/.test(approvalSha256 ?? '')) fail('CONFIGURATION', { layer: 'local-validation' });
     if (notAfter !== null && (typeof notAfter !== 'string' || !Number.isFinite(Date.parse(notAfter)))) fail('CONFIGURATION', { layer: 'local-validation' });
-    if (typeof assertOwnership !== 'function' || typeof assertCodeIdentity !== 'function') fail('CONFIGURATION', { layer: 'local-validation' });
+    if (typeof assertOwnership !== 'function' || typeof assertCodeIdentity !== 'function' || typeof assertControls !== 'function') {
+      fail('CONFIGURATION', { layer: 'local-validation' });
+    }
     this.proposal = proposal;
     this.rpcs = rpcs;
     this.signer = signer;
@@ -618,8 +630,11 @@ export class LiveStepExecutor {
     this.notAfter = notAfter;
     this.trackingOnly = trackingOnly === true;
     this.cleanup = cleanup === true;
+    this.semanticVerification = semanticVerification !== false;
+    if (!this.semanticVerification && !this.trackingOnly) fail('CONFIGURATION', { layer: 'local-validation' });
     this.assertOwnership = assertOwnership;
     this.assertCodeIdentity = assertCodeIdentity;
+    this.assertControls = assertControls;
     this.requiredDepth = proposal.confirmations.stepProgression;
   }
 
@@ -665,6 +680,9 @@ export class LiveStepExecutor {
             if (!this.#writesAllowed()) fail('APPROVAL_EXPIRED', { layer: 'local-validation', step, notAfter: this.notAfter });
             const blocked = await this.#dependencyBlock(runId, step);
             if (blocked) { await this.sleep(this.pollMs); return this.#outcome(step, record, false, { waitingFor: blocked }); }
+            // The controls this step rests on are read again from both sources
+            // right here, after the dependency reads and before the signature.
+            await this.assertControls(step);
             record = await this.#sign(step, record); break;
           }
           case 'signed':
@@ -679,7 +697,12 @@ export class LiveStepExecutor {
             record = await this.#broadcast(step, record); break;
           case 'broadcast':
           case 'uncertain': record = await this.#track(step, record); break;
-          case 'confirmed': record = await this.#verify(step, record); break;
+          case 'confirmed':
+            // The receipt is recorded; the semantic result would be a claim by
+            // this process's code, so a process without the approved identity
+            // stops here and leaves the record confirmed (R2-F03).
+            if (!this.semanticVerification) return this.#outcome(step, record, false, { waitingFor: { reason: 'CODE_IDENTITY_MISMATCH', journalState: record.state } });
+            record = await this.#verify(step, record); break;
           default: fail('JOURNAL_STATE', { layer: 'journal', step });
         }
       }

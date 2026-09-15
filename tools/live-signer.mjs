@@ -8,13 +8,14 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 // The code identity module is imported first so the process identity is the
 // disk state at startup, before the application modules below are evaluated.
 import { PROCESS_CODE_IDENTITY_SHA256 } from '../src/code-identity.mjs';
 import { ROOT, boundedPath } from '../src/store.mjs';
 import { loadLiveProposal } from '../src/brickken-live-plan.mjs';
 import { LiveSigner, LiveSignerError } from '../src/brickken-live-signer.mjs';
+import { createRoleResolver, createSignerRequestHandler } from '../src/live-signer-http.mjs';
 
 const require = createRequire(import.meta.url);
 const ethers = require('../vendor/ethers-6.17.0/ethers.umd.min.cjs');
@@ -24,7 +25,6 @@ const WALLET_FILES = Object.freeze({
   unlock: 'avaussalaisuus.bin'
 });
 const MAX_KEYSTORE_BYTES = 64 * 1024;
-const MAX_REQUEST_BYTES = 64 * 1024;
 
 function stop(message) {
   console.error(`Live signer stopped: ${message}`);
@@ -128,64 +128,14 @@ async function main() {
   }
 
   const tokens = { owner: randomBytes(32).toString('hex'), agent: randomBytes(32).toString('hex') };
-  let queue = Promise.resolve();
-  const serialized = work => {
-    const run = queue.then(work, work);
-    queue = run.catch(() => undefined);
-    return run;
-  };
-  const roleFor = header => {
-    const match = /^Bearer ([a-f0-9]{64})$/.exec(header ?? '');
-    if (!match) return null;
-    const presented = Buffer.from(match[1]);
-    for (const role of ['owner', 'agent']) {
-      const expected = Buffer.from(tokens[role]);
-      if (presented.length === expected.length && timingSafeEqual(presented, expected)) return role;
-    }
-    return null;
-  };
-
-  const server = http.createServer(async (req, res) => {
-    const reply = (status, body) => {
-      res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-      res.end(JSON.stringify(body));
-    };
-    try {
-      const port = server.address().port;
-      if (req.headers.host !== `127.0.0.1:${port}` || req.headers.origin !== undefined) return reply(403, { error: 'ORIGIN_DENIED' });
-      const role = roleFor(req.headers.authorization);
-      if (!role) return reply(401, { error: 'TOKEN_DENIED' });
-      if (req.method === 'GET' && req.url === '/v1/status') return reply(200, { role, ...signer.status() });
-      if (req.method !== 'POST' || !/^application\/json(?:;|$)/i.test(req.headers['content-type'] ?? '')) {
-        return reply(405, { error: 'METHOD_DENIED' });
-      }
-      const chunks = [];
-      let size = 0;
-      for await (const chunk of req) {
-        size += chunk.length;
-        if (size > MAX_REQUEST_BYTES) return reply(413, { error: 'REQUEST_TOO_LARGE' });
-        chunks.push(chunk);
-      }
-      let input;
-      try { input = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { return reply(400, { error: 'REQUEST_INVALID' }); }
-      if (!input || typeof input !== 'object' || Array.isArray(input)) return reply(400, { error: 'REQUEST_INVALID' });
-      const result = await serialized(async () => {
-        switch (req.url) {
-          case '/v1/prepare': return signer.prepare({ role, step: input.step, body: input.body });
-          case '/v1/sign': return signer.sign({ role, step: input.step, transaction: input.transaction });
-          case '/v1/send': return signer.send({ role, step: input.step, txId: input.txId, signedTransaction: input.signedTransaction });
-          case '/v1/transaction-status': return signer.transactionStatus({ role, step: input.step });
-          default: throw new LiveSignerError('NOT_FOUND');
-        }
-      });
-      return reply(200, result);
-    } catch (error) {
-      if (error instanceof LiveSignerError) {
-        return reply(error.code === 'NOT_FOUND' ? 404 : 409, { error: error.code, ...(error.details === undefined ? {} : { details: error.details }) });
-      }
-      return reply(500, { error: 'INTERNAL' });
-    }
-  });
+  // The request handler lives in src/live-signer-http.mjs so it can be tested
+  // with an injected signer and no key. Inside its serialized queue, right
+  // before every prepare, sign and send, it compares the approved code identity
+  // with this process and with the files on disk at that moment (R2-F05).
+  const server = http.createServer(createSignerRequestHandler({
+    signer, roleFor: createRoleResolver(tokens), port: () => server.address().port,
+    identity: { approved: settings.codeIdentitySha256, process: PROCESS_CODE_IDENTITY_SHA256 }
+  }));
   server.requestTimeout = 120_000;
   server.headersTimeout = 10_000;
 

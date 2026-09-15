@@ -13,6 +13,19 @@ import { validateCodeIdentityEvidence } from './code-identity.mjs';
 
 export const LIVE_BASE_EVIDENCE_FILES = Object.freeze(['run-approval', 'preflight-plan', 'preflight-start', 'code-identity', 'code-identity-start', 'finality']);
 
+// The members an exported package of a complete run must carry, named the way
+// tools/export-live-evidence.mjs writes them. The recording binding refuses a
+// package that lacks any of them, so a package is whole or it is nothing (R2-F04).
+export function requiredEvidencePackageMembers(run) {
+  const members = ['transactions.json', 'run.json', ...LIVE_BASE_EVIDENCE_FILES.map(name => `${name}.json`)];
+  for (const id of LIVE_CONTROL_IDS) members.push(`controls/${id}.json`);
+  for (const step of LIVE_WRITE_STEPS) {
+    if (!run.steps[step].planned) continue;
+    for (const suffix of ['preparation', 'receipt', 'postcheck']) members.push(`steps/${step}-${suffix}.json`);
+  }
+  return members;
+}
+
 function uintEqual(left, right) {
   try { return BigInt(left) === BigInt(right); } catch { return false; }
 }

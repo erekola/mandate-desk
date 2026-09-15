@@ -5,7 +5,7 @@
   "excludes": [
     "SHA256-MANIFEST.json"
   ],
-  "fileCount": 91,
+  "fileCount": 93,
   "files": [
     {
       "path": ".gitattributes",
@@ -19,8 +19,8 @@
     },
     {
       "path": "AI-DISCLOSURE.md",
-      "bytes": 1644,
-      "sha256": "6af285142fdacf9290af39b143b610b821974a6e827ee36b10137527d93e1ff5"
+      "bytes": 1773,
+      "sha256": "1b6d65f55f1500940448ab0c58922cad4293ff2be72752a137bdb3e5c1f19586"
     },
     {
       "path": "DEMO.md",
@@ -34,8 +34,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 8097,
-      "sha256": "24dd16e37a7231f57786e32b848a66560a5a6dc6b3e605dd1cdfff196a0d5cc3"
+      "bytes": 8904,
+      "sha256": "506b9d3f1f888403a1c1e2df896278c27b3d96593dfebf49f05634c26b13f82d"
     },
     {
       "path": "THIRD-PARTY-NOTICES.md",
@@ -44,8 +44,8 @@
     },
     {
       "path": "VERIFICATION.md",
-      "bytes": 10236,
-      "sha256": "14992da2c99032932fb0176d2fe261b7e39374bcdeb0c1039a58b511f3e4e555"
+      "bytes": 13112,
+      "sha256": "d67e65148dbc44db1cb7f1549c76f3b9e92e44d03521583b4f3dfd3150f0ef9f"
     },
     {
       "path": "integration/demo-proposal.json",
@@ -69,8 +69,8 @@
     },
     {
       "path": "media/mandate-desk-card.png",
-      "bytes": 333807,
-      "sha256": "a716e1a63ca8d13c95e420035386e84d2d9556fe350db77008e858ad87b969b9"
+      "bytes": 333701,
+      "sha256": "7a06e792f16678c7ea5ed2c29cab927bb4364150e30c7d698d4ceff8965ae5fa"
     },
     {
       "path": "media/mandate-desk-demo.mp4",
@@ -179,13 +179,13 @@
     },
     {
       "path": "src/brickken-live-adapter.mjs",
-      "bytes": 64657,
-      "sha256": "235c8f9b77c4fd7b18a295baca025c3509054e88855174afb26cb6e207dfe8f0"
+      "bytes": 66183,
+      "sha256": "2cf64f9503b2dfb374fb37a8f4ccd655a689b297627a15257ef5e8c0f410a241"
     },
     {
       "path": "src/brickken-live-completeness.mjs",
-      "bytes": 4965,
-      "sha256": "f7ed8498cb86c1b8513494e9e78efefaec9966293f0d3574011e8c68aedd7635"
+      "bytes": 5667,
+      "sha256": "1b03f1d28c3a3fa24e7524fedad9753e41992ca668291fb6f547112c94c681fe"
     },
     {
       "path": "src/brickken-live-plan.mjs",
@@ -224,8 +224,8 @@
     },
     {
       "path": "src/brickken-workspace.mjs",
-      "bytes": 100937,
-      "sha256": "8f9a166892eb31da25121dcacb0ddab5a22ccce189b9210d206a8b9ead7642c9"
+      "bytes": 112725,
+      "sha256": "8ab7213507f91a25b56d2ccf8451a70ac82293fba69b1e55d84dd30a5e90c176"
     },
     {
       "path": "src/code-identity.mjs",
@@ -246,6 +246,11 @@
       "path": "src/live-lock.mjs",
       "bytes": 10240,
       "sha256": "f2f908fcc952f60057260ba54c0fdb6d25077b1b4c06d8f555b08e17de6b9c0d"
+    },
+    {
+      "path": "src/live-signer-http.mjs",
+      "bytes": 6335,
+      "sha256": "6273540013b8c367ffa09a781ddd848be64fc020b3238ade08a0c6ae53275641"
     },
     {
       "path": "src/mcp-integration.mjs",
@@ -333,9 +338,14 @@
       "sha256": "1e374f030fbb504b38d5f725adbde2a8c02e52ccae1fa4b3acf7c99cf057b1e8"
     },
     {
+      "path": "test/brickken-live-round2-recheck.test.mjs",
+      "bytes": 43813,
+      "sha256": "1a7a6ec93c34f97160b83bbe6a39201bf9c8fc97829532223aa7b7494eb3576d"
+    },
+    {
       "path": "test/brickken-live-signer.test.mjs",
-      "bytes": 27810,
-      "sha256": "2e03132225b8dc879aaf87d85cb4d1938499e8502cde253ad7a33f6f69aa912e"
+      "bytes": 28258,
+      "sha256": "330caf10f2ee4846178614d4530e9b5ab4fd5f0b3ed50bf5ca572ca480252fb6"
     },
     {
       "path": "test/brickken-live-workspace.test.mjs",
@@ -419,8 +429,8 @@
     },
     {
       "path": "tools/check-demo.mjs",
-      "bytes": 1262,
-      "sha256": "0046bac4351c077563a0edbea1f5250c919a6243c670f5767df06b784651b140"
+      "bytes": 1293,
+      "sha256": "92c8be1e759ccb621e294e1fbef9a965dd0e9832311405f16dcc3b07470ef906"
     },
     {
       "path": "tools/export-live-evidence.mjs",
@@ -429,8 +439,8 @@
     },
     {
       "path": "tools/live-signer.mjs",
-      "bytes": 10745,
-      "sha256": "399fffee1d1a1c0fcf6ef4f7018e45e02f72c79ef53f9acaa4e6e3027da5ef0d"
+      "bytes": 8517,
+      "sha256": "0963ac2cb1c9d61a97bc581a9116a35ece8b3a6cb03796e2b478613684279745"
     },
     {
       "path": "tools/start-live-signer.ps1",
