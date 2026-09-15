@@ -87,6 +87,11 @@ export function broadcastBackoffUntil(record, nowMs) {
 // that refused. Unknown errors keep a fixed code and never echo their text.
 export function classifyLiveError(error, step = null) {
   if (error instanceof LiveAdapterError) return error;
+  // The workspace's ownership and code identity gates throw their own error type
+  // inside the executor; their code and details are kept, never folded into INTERNAL.
+  if (error?.name === 'BrickkenWorkspaceError' && typeof error.code === 'string') {
+    return new LiveAdapterError(error.code, { layer: 'workspace', step, ...(error.details && typeof error.details === 'object' ? error.details : {}) });
+  }
   if (error instanceof SepoliaRpcError) return new LiveAdapterError(error.code, { layer: 'rpc', step, method: error.method });
   if (error instanceof BrickkenJournalError) return new LiveAdapterError(error.code, { layer: 'journal', step });
   if (error instanceof plan.BrickkenLivePlanError) return new LiveAdapterError(error.code, { layer: 'local-validation', step });
@@ -580,7 +585,10 @@ export class LiveStepExecutor {
   // or sent again, and recorded bytes are only tracked by reads until a recovery
   // authorization exists. trackingOnly forces that read-only mode. cleanup
   // selects the cleanup revocation verifier. assertOwnership is called before
-  // every action so a displaced run lock stops the step instead of continuing.
+  // every action, and again right before every prepare, sign and send after the
+  // awaits that precede them, so a displaced run lock stops the step instead of
+  // continuing (A1-F03). assertCodeIdentity is called at the same points so a
+  // changed source file stops the step before a signature or a send (N5).
   constructor({
     proposal, rpcs, signer, journal, approvalSha256,
     now = () => Date.now(),
@@ -591,11 +599,12 @@ export class LiveStepExecutor {
     notAfter = null,
     trackingOnly = false,
     cleanup = false,
-    assertOwnership = () => {}
+    assertOwnership = () => {},
+    assertCodeIdentity = () => {}
   }) {
     if (!/^[a-f0-9]{64}$/.test(approvalSha256 ?? '')) fail('CONFIGURATION', { layer: 'local-validation' });
     if (notAfter !== null && (typeof notAfter !== 'string' || !Number.isFinite(Date.parse(notAfter)))) fail('CONFIGURATION', { layer: 'local-validation' });
-    if (typeof assertOwnership !== 'function') fail('CONFIGURATION', { layer: 'local-validation' });
+    if (typeof assertOwnership !== 'function' || typeof assertCodeIdentity !== 'function') fail('CONFIGURATION', { layer: 'local-validation' });
     this.proposal = proposal;
     this.rpcs = rpcs;
     this.signer = signer;
@@ -610,6 +619,14 @@ export class LiveStepExecutor {
     this.trackingOnly = trackingOnly === true;
     this.cleanup = cleanup === true;
     this.assertOwnership = assertOwnership;
+    this.assertCodeIdentity = assertCodeIdentity;
+    this.requiredDepth = proposal.confirmations.stepProgression;
+  }
+
+  // Both write-capable gates in one call, used right before an external action.
+  #beforeWrite() {
+    this.assertOwnership();
+    this.assertCodeIdentity();
   }
 
   // False once the approval expired or the executor was opened for tracking only.
@@ -627,8 +644,11 @@ export class LiveStepExecutor {
       this.assertOwnership();
       let record = this.journal.find(operationId);
       if (!record) {
-        // Nothing exists for this step yet; a new preparation needs an active approval.
+        // Nothing exists for this step yet; a new preparation needs an active approval
+        // and every earlier write of the run at the required depth on both sources.
         if (!this.#writesAllowed()) fail('APPROVAL_EXPIRED', { layer: 'local-validation', step, notAfter: this.notAfter });
+        const blocked = await this.#dependencyBlock(runId, step);
+        if (blocked) { await this.sleep(this.pollMs); return this.#outcome(step, null, false, { operationId, waitingFor: blocked }); }
         record = await this.#prepare(step, operationId);
       }
       while (true) {
@@ -639,10 +659,14 @@ export class LiveStepExecutor {
         }
         if (this.now() - started > deadlineMs) return this.#outcome(step, record, false);
         switch (record.state) {
-          case 'pending':
-            // Nothing is signed: a fresh signature after expiry would need a new approval.
+          case 'pending': {
+            // Nothing is signed: a fresh signature after expiry would need a new approval,
+            // and a signature is a dependent write, so the depth gate runs again here.
             if (!this.#writesAllowed()) fail('APPROVAL_EXPIRED', { layer: 'local-validation', step, notAfter: this.notAfter });
+            const blocked = await this.#dependencyBlock(runId, step);
+            if (blocked) { await this.sleep(this.pollMs); return this.#outcome(step, record, false, { waitingFor: blocked }); }
             record = await this.#sign(step, record); break;
+          }
           case 'signed':
             // Recorded bytes that never left this process: sending them after expiry
             // needs a recovery authorization bound to exactly this hash and these bytes.
@@ -664,43 +688,98 @@ export class LiveStepExecutor {
     }
   }
 
-  // Re-reads the block of every verified write; a changed hash on either
-  // source withdraws the confirmation so the step is tracked again.
+  // Re-reads the block of every verified write on both sources. The reading is
+  // aggregated per source: a differing hash from either source withdraws the
+  // confirmation so the step is tracked again, also when the other source has
+  // no block at that height; a source without the block proves nothing, so the
+  // state is kept and the stored depth becomes 0 (A1-F06). The depth stored on
+  // a clean reading is the smaller of the two sources, and a verified write is
+  // eligible to be built on only while both sources return the recorded hash
+  // at the required depth (A1-F05). Each result says why a write is not.
   async recheck(operationIds) {
     const { primary, secondary } = this.rpcs;
     const results = [];
     for (const operationId of operationIds) {
       const record = this.journal.find(operationId);
       if (!record || !['confirmed', 'semantically_verified', 'reverted'].includes(record.state)) continue;
+      const height = record.confirmation.blockNumber;
+      const recorded = record.confirmation.blockHash;
       const [a, b, latestPrimary, latestSecondary] = await Promise.all([
-        primary.getBlock({ blockNumber: record.confirmation.blockNumber }),
-        secondary.getBlock({ blockNumber: record.confirmation.blockNumber }),
+        primary.getBlock({ blockNumber: height }), secondary.getBlock({ blockNumber: height }),
         primary.blockNumber(), secondary.blockNumber()
       ]);
-      if (!a || !b) continue;
-      // The stored depth is the smaller of the two sources, never the primary alone.
-      const depth = tip => Number(BigInt(tip) - BigInt(record.confirmation.blockNumber) + 1n);
+      const depth = tip => Math.max(0, Number(BigInt(tip) - BigInt(height) + 1n));
+      const confirmationsPrimary = a ? depth(latestPrimary) : 0;
+      const confirmationsSecondary = b ? depth(latestSecondary) : 0;
+      const differs = block => block !== null && block.hash !== recorded;
+      const withdrawn = differs(a) || differs(b);
+      const bothPresent = Boolean(a && b);
+      const confirmations = withdrawn || !bothPresent ? 0 : Math.min(confirmationsPrimary, confirmationsSecondary);
       const next = this.journal.recheckConfirmation(operationId, {
-        transactionHash: record.confirmation.transactionHash, blockNumber: record.confirmation.blockNumber,
-        blockHash: a.hash, secondaryBlockHash: b.hash,
-        confirmations: Math.max(1, Math.min(depth(latestPrimary), depth(latestSecondary))),
-        checkedAt: iso(this.now())
+        transactionHash: record.confirmation.transactionHash, blockNumber: height,
+        blockHash: a?.hash ?? null, secondaryBlockHash: b?.hash ?? null,
+        confirmations, checkedAt: iso(this.now())
       });
-      results.push({ operationId, state: next.state });
+      const reason = withdrawn ? 'CONFIRMATION_WITHDRAWN'
+        : !bothPresent ? 'SOURCE_MISSING_BLOCK'
+          : confirmations < this.requiredDepth ? 'DEPTH_BELOW_THRESHOLD'
+            : next.state !== 'semantically_verified' ? 'DEPENDENCY_UNSETTLED' : null;
+      results.push(Object.freeze({
+        operationId, state: next.state, confirmations, confirmationsPrimary, confirmationsSecondary,
+        required: this.requiredDepth, sourcesAgreed: bothPresent && !withdrawn,
+        // depthEligible: both sources return the recorded hash at the required depth; eligible adds the semantic verification.
+        depthEligible: reason === null || reason === 'DEPENDENCY_UNSETTLED', eligible: reason === null, reason
+      }));
     }
     return results;
   }
 
-  #outcome(step, record, done) {
+  // A fresh two-source reading of one write's eligibility to be built on.
+  async progression(operationId) {
+    const [result] = await this.recheck([operationId]);
+    return result ?? Object.freeze({ operationId, state: this.journal.find(operationId)?.state ?? null, depthEligible: false, eligible: false, reason: 'DEPENDENCY_UNSETTLED', required: this.requiredDepth });
+  }
+
+  // Before a new dependent write (a preparation or a signature) every other
+  // write of the run that already has a record must be settled: a verified one
+  // must still read at the required depth from both sources right now, a
+  // reverted one changed nothing, and anything else is unsettled. The run is a
+  // sequence, so each new write is built on the state after all earlier ones.
+  // Returns null when the write may proceed, otherwise the blocking reason.
+  async #dependencyBlock(runId, step) {
+    for (const other of plan.LIVE_WRITE_STEPS) {
+      if (other === step) continue;
+      const operationId = `${runId}_${other}`;
+      const record = this.journal.find(operationId);
+      if (!record || record.state === 'reverted') continue;
+      // Outside cleanup every earlier write must be semantically verified; cleanup
+      // may build on a confirmed write whose chain effect it attributes separately.
+      const settled = this.cleanup ? ['confirmed', 'semantically_verified'] : ['semantically_verified'];
+      if (!settled.includes(record.state)) {
+        return { dependencyOperationId: operationId, reason: 'DEPENDENCY_UNSETTLED', journalState: record.state, required: this.requiredDepth };
+      }
+      const result = await this.progression(operationId);
+      if (!result.depthEligible || !settled.includes(result.state)) {
+        return {
+          dependencyOperationId: operationId, reason: result.reason ?? 'DEPENDENCY_UNSETTLED', journalState: result.state, required: this.requiredDepth,
+          confirmationsPrimary: result.confirmationsPrimary ?? null, confirmationsSecondary: result.confirmationsSecondary ?? null
+        };
+      }
+    }
+    return null;
+  }
+
+  #outcome(step, record, done, { operationId = record?.operationId ?? null, waitingFor = null } = {}) {
     return Object.freeze({
-      step, operationId: record.operationId, done, state: record.state, route: record.route, apiTxId: record.apiTxId,
-      transactionHash: record.signed?.ethereumTransactionHash ?? null,
-      blockNumber: record.confirmation?.blockNumber ?? null,
-      blockHash: record.confirmation?.blockHash ?? null,
-      semanticallyVerified: record.state === 'semantically_verified',
-      attempts: record.broadcast?.attempts ?? 0,
-      backoffUntil: record.broadcast ? broadcastBackoffUntil(record, this.now()) : null,
-      trackingOnly: !this.#writesAllowed()
+      step, operationId, done, state: record?.state ?? null, route: record?.route ?? null, apiTxId: record?.apiTxId ?? null,
+      transactionHash: record?.signed?.ethereumTransactionHash ?? null,
+      blockNumber: record?.confirmation?.blockNumber ?? null,
+      blockHash: record?.confirmation?.blockHash ?? null,
+      semanticallyVerified: record?.state === 'semantically_verified',
+      attempts: record?.broadcast?.attempts ?? 0,
+      backoffUntil: record?.broadcast ? broadcastBackoffUntil(record, this.now()) : null,
+      trackingOnly: !this.#writesAllowed(),
+      waitingFor
     });
   }
 
@@ -760,6 +839,8 @@ export class LiveStepExecutor {
       };
     } else {
       const body = plan.facadeBody(proposal, step, { nonce, gasLimit, validFrom });
+      // The reads above awaited; ownership and the code identity are checked again before the write-capable call.
+      this.#beforeWrite();
       const responseText = await this.signer.prepare(step, body);
       let parsed;
       try { parsed = parseRamsPrepareResponse(responseText); }
@@ -805,6 +886,8 @@ export class LiveStepExecutor {
     // Nothing is signed yet, so a stale nonce or window is replaced by a fresh preparation.
     if (latest !== record.transaction.nonce || pending !== latest || staleWindow) return this.#prepare(step, record.operationId);
     plan.checkLiveTransaction(this.proposal, step, record.transaction, { nonce: latest });
+    // The nonce reads awaited: ownership lost meanwhile stops here, before the signer is asked for anything.
+    this.#beforeWrite();
     const result = await this.signer.sign(step, record.transaction);
     if (typeof result?.signedTransaction !== 'string') fail('SIGNER_RESPONSE_INVALID', { layer: 'signer', step });
     try {
@@ -822,6 +905,10 @@ export class LiveStepExecutor {
     const bytes = record.signed.signedTransaction;
     const attemptedAt = iso(this.now());
     const persist = (result, relayTransactionHash) => this.journal.recordBroadcast(record.operationId, bytes, { result, attemptedAt, relayTransactionHash });
+    // Ownership and the code identity are checked right before the network call.
+    // Once the send has started its result is journaled whatever happens to the
+    // lock meanwhile: bytes that may have reached the network are never forgotten.
+    this.#beforeWrite();
     if (record.route === 'sepolia-rpc') {
       // The per-window budget is enforced where a resend is decided (#track).
       try {
@@ -1025,10 +1112,14 @@ export class LiveStepExecutor {
   }
 }
 
-// A block-bound observation is canonical while both sources still return the
-// recorded hash at the recorded height. A source that has no block at that
-// height yet (lagging) leaves the question open: canonical is then null, not
-// false, and the caller decides nothing from it. Used for the read-only controls.
+// A block-bound observation is aggregated per source. It is canonical (true)
+// only while both sources return the recorded hash at the recorded height. It
+// is not canonical (false) as soon as any source that returned a block returned
+// a different hash: one source has then proved the block left the chain, and a
+// missing answer from the other cannot hide that (A1-F06). It is unresolved
+// (null) only when no source disagrees but both did not confirm, because one
+// or both have no block at that height yet; a caller may wait on null, never
+// build on it. Used for the read-only controls.
 export async function checkControlCanonicity({ rpcs, controls }) {
   const { primary, secondary } = rpcs;
   const results = [];
@@ -1036,10 +1127,13 @@ export async function checkControlCanonicity({ rpcs, controls }) {
     const [a, b] = await Promise.all([
       primary.getBlock({ blockNumber: control.blockNumber }), secondary.getBlock({ blockNumber: control.blockNumber })
     ]);
+    const primaryMatch = a ? a.hash === control.blockHash : null;
+    const secondaryMatch = b ? b.hash === control.blockHash : null;
     results.push({
       controlId: control.controlId, blockNumber: control.blockNumber, blockHash: control.blockHash,
-      primaryHash: a?.hash ?? null, secondaryHash: b?.hash ?? null,
-      canonical: a && b ? a.hash === control.blockHash && b.hash === control.blockHash : null
+      primaryHash: a?.hash ?? null, secondaryHash: b?.hash ?? null, primaryMatch, secondaryMatch,
+      canonical: primaryMatch === false || secondaryMatch === false ? false
+        : primaryMatch === true && secondaryMatch === true ? true : null
     });
   }
   return results;

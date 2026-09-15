@@ -3,11 +3,13 @@
 // semantically verified, every read-only control observed, passed and still
 // canonical, a finality result that is newer than the last journal or control
 // change and whose entries name the same operation ids and block hashes as the
-// journal and the control records, and every required evidence file present.
-// It reads saved state only; it never contacts the chain.
+// journal and the control records, every required evidence file present, and
+// the two code identity documents valid by content and equal to the run's
+// approved code identity. It reads saved state only; it never contacts the chain.
 import fs from 'node:fs';
 import path from 'node:path';
 import { LIVE_CONTROL_IDS, LIVE_WRITE_STEPS } from './brickken-live-plan.mjs';
+import { validateCodeIdentityEvidence } from './code-identity.mjs';
 
 export const LIVE_BASE_EVIDENCE_FILES = Object.freeze(['run-approval', 'preflight-plan', 'preflight-start', 'code-identity', 'code-identity-start', 'finality']);
 
@@ -62,6 +64,7 @@ export function evaluateLiveRunCompleteness({ run, journal, evidenceDirectory = 
       if (entry.finalized !== true) note(`FINALITY_CONTROL_NOT_FINALIZED:${id}`);
     }
   }
+  if (!/^[a-f0-9]{64}$/.test(run.codeIdentitySha256 ?? '')) note('CODE_IDENTITY_MISSING');
   if (evidenceDirectory !== null) {
     const required = [...LIVE_BASE_EVIDENCE_FILES, ...LIVE_CONTROL_IDS];
     for (const step of LIVE_WRITE_STEPS) {
@@ -70,6 +73,16 @@ export function evaluateLiveRunCompleteness({ run, journal, evidenceDirectory = 
     }
     for (const name of required) {
       if (!fs.existsSync(path.join(evidenceDirectory, `${name}.json`))) note(`EVIDENCE_FILE_MISSING:${name}`);
+    }
+    // Existence is not enough for the identity documents: each is validated by
+    // content and its stable hash must equal the identity the run was approved for.
+    for (const name of ['code-identity', 'code-identity-start']) {
+      const file = path.join(evidenceDirectory, `${name}.json`);
+      if (!fs.existsSync(file)) continue;
+      let stable;
+      try { stable = validateCodeIdentityEvidence(JSON.parse(fs.readFileSync(file, 'utf8'))); }
+      catch { note(`CODE_IDENTITY_EVIDENCE_INVALID:${name}`); continue; }
+      if (stable !== run.codeIdentitySha256) note(`CODE_IDENTITY_EVIDENCE_MISMATCH:${name}`);
     }
   }
   return Object.freeze({ complete: missing.length === 0, missing: Object.freeze(missing) });

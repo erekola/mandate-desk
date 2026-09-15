@@ -25,6 +25,7 @@ import {
   validateRunApproval
 } from '../src/brickken-live-plan.mjs';
 import { evaluateLiveRunCompleteness } from '../src/brickken-live-completeness.mjs';
+import { PROCESS_CODE_IDENTITY_SHA256, computeCodeIdentity } from '../src/code-identity.mjs';
 
 const EXPLORER_TX = 'https://sepolia.etherscan.io/tx/';
 const OPERATIONS = Object.freeze({
@@ -78,7 +79,16 @@ function main() {
   try { validateRunApproval(approval, proposal); } catch { stop('the run approval does not match the reviewed plan.'); }
   if (approval.approvalSha256 !== run.approvalSha256) stop('the run approval hash differs from the run.');
   const journal = new LiveBrickkenJournal({ directory: path.join(liveDirectory, 'journal') });
-  const completeness = evaluateLiveRunCompleteness({ run, journal, evidenceDirectory });
+  // The completeness rule runs in this process's code, so a package counts as
+  // complete only when this process and the files on disk carry the code
+  // identity the run was approved for; otherwise the export is incomplete and
+  // says why, and it is refused unless --allow-incomplete is given.
+  const stored = evaluateLiveRunCompleteness({ run, journal, evidenceDirectory });
+  let diskIdentity = null;
+  try { diskIdentity = computeCodeIdentity().codeIdentitySha256; } catch { diskIdentity = null; }
+  const identityMatches = typeof run.codeIdentitySha256 === 'string' && run.codeIdentitySha256 === PROCESS_CODE_IDENTITY_SHA256 && run.codeIdentitySha256 === diskIdentity;
+  const missing = identityMatches ? [...stored.missing] : [...stored.missing, 'CODE_IDENTITY_MISMATCH:export'];
+  const completeness = { complete: missing.length === 0, missing };
   if (!completeness.complete && !settings.allowIncomplete) {
     stop(`the run is not complete as evidence: ${completeness.missing.join(', ')}; use --allow-incomplete to export it as incomplete.`);
   }
@@ -164,6 +174,7 @@ function main() {
     approvalSha256: run.approvalSha256,
     proposalHash: proposal.proposalHash,
     codeIdentitySha256: run.codeIdentitySha256 ?? null,
+    exportCodeIdentitySha256: PROCESS_CODE_IDENTITY_SHA256,
     finalityCheckedAt: run.finality?.checkedAt ?? null,
     transactions
   });

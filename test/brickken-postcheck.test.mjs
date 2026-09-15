@@ -158,8 +158,22 @@ test('grant requires matched MandateGranted and ActionEnabled events plus comple
 
   const missingAction = structuredClone(input); missingAction.receipt.logs.pop();
   assert.throws(() => verifyGrantPostcheck(missingAction, input.expected), { code: 'EVENT_COUNT' });
-  const stale = structuredClone(input); stale.before.state = { mandate: mandate({ revoked: true }), actionEnabled: true };
-  assert.throws(() => verifyGrantPostcheck(stale, input.expected), { code: 'STALE_GRANT_STATE' });
+  // N1 (2026-09-15): a revoked earlier mandate of the same pair with the action
+  // still enabled is the registry's state after revokeMandate, so a new grant
+  // for the pair verifies from it. An active earlier mandate, another pair, an
+  // enabled action without a revoked mandate, and a wrong new mandate are rejected.
+  const reuse = structuredClone(input); reuse.before.state = { mandate: mandate({ revoked: true }), actionEnabled: true };
+  assert.equal(verifyGrantPostcheck(reuse, input.expected).verified, true);
+  const revokedDisabled = structuredClone(input); revokedDisabled.before.state = { mandate: mandate({ revoked: true }), actionEnabled: false };
+  assert.equal(verifyGrantPostcheck(revokedDisabled, input.expected).verified, true);
+  const active = structuredClone(input); active.before.state = { mandate: mandate(), actionEnabled: true };
+  assert.throws(() => verifyGrantPostcheck(active, input.expected), { code: 'STALE_GRANT_STATE' });
+  const otherPair = structuredClone(input); otherPair.before.state = { mandate: mandate({ revoked: true, agent: RECIPIENT }), actionEnabled: true };
+  assert.throws(() => verifyGrantPostcheck(otherPair, input.expected), { code: 'STALE_GRANT_STATE' });
+  const enabledWithout = structuredClone(input); enabledWithout.before.state = { mandate: null, actionEnabled: true };
+  assert.throws(() => verifyGrantPostcheck(enabledWithout, input.expected), { code: 'STALE_GRANT_STATE' });
+  const wrongAfter = structuredClone(input); wrongAfter.after.state = { mandate: mandate({ metadata: '0x' + 'ab'.repeat(32) }), actionEnabled: true };
+  assert.throws(() => verifyGrantPostcheck(wrongAfter, input.expected), { code: 'MANDATE_STATE_MISMATCH' });
 });
 
 test('execute verifies both source-matched events and every balance, allowance and cumulative delta', () => {

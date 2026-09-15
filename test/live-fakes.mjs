@@ -18,6 +18,7 @@ import { EVENT_TOPICS } from '../src/brickken-postcheck.mjs';
 import { SepoliaRpcError } from '../src/brickken-rpc.mjs';
 import { LiveAdapterError } from '../src/brickken-live-adapter.mjs';
 import { parseRamsPrepareResponse } from '../src/brickken-prepare.mjs';
+import { PROCESS_CODE_IDENTITY_SHA256 } from '../src/code-identity.mjs';
 import {
   LiveSignerError,
   authorizePrepare,
@@ -304,15 +305,18 @@ export class FakeSepolia {
 export class FakeRpc {
   // faults.viewOverride(block, input, returnData) may replace one eth_call
   // result on this source only; faults.hideBlock(block) makes this source
-  // answer null for that block, as a refusing or lagging endpoint would.
+  // answer null for that block, as a refusing or lagging endpoint would;
+  // faults.tipBlock freezes this source's tip at that block number, as a
+  // stalled endpoint would, so its depth readings stop growing.
   constructor(chain, endpointName, faults = {}) {
     this.chain = chain;
     this.endpointName = endpointName;
-    this.faults = { lagBlocks: 0, sendErrors: [], forgeReceipt: null, viewOverride: null, hideBlock: null, ...faults };
+    this.faults = { lagBlocks: 0, sendErrors: [], forgeReceipt: null, viewOverride: null, hideBlock: null, tipBlock: null, ...faults };
   }
 
   #visible() {
-    const blocks = this.chain.blocks.slice(0, this.chain.blocks.length - this.faults.lagBlocks);
+    let blocks = this.chain.blocks.slice(0, this.chain.blocks.length - this.faults.lagBlocks);
+    if (this.faults.tipBlock !== null) blocks = blocks.filter(block => block.number <= this.faults.tipBlock);
     return this.faults.hideBlock ? blocks.filter(block => !this.faults.hideBlock(block)) : blocks;
   }
 
@@ -425,6 +429,9 @@ export class FakeSignerGateway {
     this.faults = { prepare: [], send: [] };
     this.keys = { owner: new ethers.SigningKey(TEST_KEYS.owner), agent: new ethers.SigningKey(TEST_KEYS.agent) };
     this.counter = 0;
+    // The identity the fake signer reports: this process's by default, as a real
+    // signer started from the same tree would; a test may set another value.
+    this.codeIdentitySha256 = PROCESS_CODE_IDENTITY_SHA256;
     this.verify = bytes => {
       const entry = this.chain.signed.get(bytes);
       if (!entry) throw new Error('unknown bytes');
@@ -455,7 +462,7 @@ export class FakeSignerGateway {
       async status() {
         if (!gateway.approval) throw new LiveAdapterError('SIGNER_UNAVAILABLE', { layer: 'signer' });
         return {
-          role, approvalSha256: gateway.approval.approvalSha256, notAfter: gateway.approval.notAfter,
+          role, approvalSha256: gateway.approval.approvalSha256, codeIdentitySha256: gateway.codeIdentitySha256, notAfter: gateway.approval.notAfter,
           active: gateway.clock.ms >= Date.parse(gateway.approval.createdAt) && gateway.clock.ms < Date.parse(gateway.approval.notAfter),
           signed: gateway.entries.filter(entry => entry.type === 'signed').map(entry => ({ step: entry.step }))
         };

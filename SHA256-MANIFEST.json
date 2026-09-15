@@ -5,7 +5,7 @@
   "excludes": [
     "SHA256-MANIFEST.json"
   ],
-  "fileCount": 89,
+  "fileCount": 91,
   "files": [
     {
       "path": ".gitattributes",
@@ -19,8 +19,8 @@
     },
     {
       "path": "AI-DISCLOSURE.md",
-      "bytes": 1496,
-      "sha256": "a86c7c7d9e9d52a8575fa364f016c599610160636f5cfd21b1b812a3dc7b1928"
+      "bytes": 1644,
+      "sha256": "6af285142fdacf9290af39b143b610b821974a6e827ee36b10137527d93e1ff5"
     },
     {
       "path": "DEMO.md",
@@ -34,8 +34,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 7573,
-      "sha256": "a5d73628a2b9a4a113b63379f691372512e3c5005d0ef35c79913ce25e5e072d"
+      "bytes": 8097,
+      "sha256": "24dd16e37a7231f57786e32b848a66560a5a6dc6b3e605dd1cdfff196a0d5cc3"
     },
     {
       "path": "THIRD-PARTY-NOTICES.md",
@@ -44,8 +44,8 @@
     },
     {
       "path": "VERIFICATION.md",
-      "bytes": 7602,
-      "sha256": "6b5f2ad680836356a7a1b388310a044c42727ddfbebd6d6da59ccee883c5f715"
+      "bytes": 10236,
+      "sha256": "14992da2c99032932fb0176d2fe261b7e39374bcdeb0c1039a58b511f3e4e555"
     },
     {
       "path": "integration/demo-proposal.json",
@@ -69,8 +69,8 @@
     },
     {
       "path": "media/mandate-desk-card.png",
-      "bytes": 333817,
-      "sha256": "99ae37c3396a71829317ddaf682e15844a14a1631fef18c0e980454123e7315c"
+      "bytes": 333807,
+      "sha256": "a716e1a63ca8d13c95e420035386e84d2d9556fe350db77008e858ad87b969b9"
     },
     {
       "path": "media/mandate-desk-demo.mp4",
@@ -114,8 +114,8 @@
     },
     {
       "path": "public/integration-copy.json",
-      "bytes": 7215,
-      "sha256": "324ac2c5293bfddcf1a6a9fae8772206c7cae1b9d93e5e099dbf2a07250c98d8"
+      "bytes": 7377,
+      "sha256": "aa883aefb26ba7d0a0d6e8a124229ac7bb6e7c6bb95be42fd1ddeaf81820f095"
     },
     {
       "path": "public/integration.html",
@@ -124,8 +124,8 @@
     },
     {
       "path": "public/integration.mjs",
-      "bytes": 23643,
-      "sha256": "b2ba6883e9b57c0685bcdad5ed85ad17ea589036bf2f41796abdf542f1b9fe07"
+      "bytes": 24002,
+      "sha256": "181a3a25815412cf27786b89b799f07ce85ac615dfe31603aee803ad47f5bbe3"
     },
     {
       "path": "public/live-demo-copy.json",
@@ -169,8 +169,8 @@
     },
     {
       "path": "src/brickken-journal.mjs",
-      "bytes": 52318,
-      "sha256": "a831d8a2474f95c4e3757e58a5c7c8f36fdb5a025ad65bbda06ea8d4d2495b17"
+      "bytes": 52955,
+      "sha256": "3a2aa44e202c508c2a77a9c608ecb04e9808f3e81698c52139f9947b1c27503e"
     },
     {
       "path": "src/brickken-lifecycle.mjs",
@@ -179,13 +179,13 @@
     },
     {
       "path": "src/brickken-live-adapter.mjs",
-      "bytes": 58418,
-      "sha256": "869c622cf60abff0ce3a68c41a5ebac271eb010069a539278e6cb64058d9cfad"
+      "bytes": 64657,
+      "sha256": "235c8f9b77c4fd7b18a295baca025c3509054e88855174afb26cb6e207dfe8f0"
     },
     {
       "path": "src/brickken-live-completeness.mjs",
-      "bytes": 4080,
-      "sha256": "8b43966d88df7bef2f61495faf43b763ec343015f5af9f0fdc307079918ee4e7"
+      "bytes": 4965,
+      "sha256": "f7ed8498cb86c1b8513494e9e78efefaec9966293f0d3574011e8c68aedd7635"
     },
     {
       "path": "src/brickken-live-plan.mjs",
@@ -194,8 +194,8 @@
     },
     {
       "path": "src/brickken-live-signer.mjs",
-      "bytes": 19232,
-      "sha256": "b3f6ffc1ba9dbac3041eafcbfa68f75401f1cb34aeef0c2c1e48216d63239a0b"
+      "bytes": 19806,
+      "sha256": "96fc0c6af346795215567e9ed94a70dfe283475f8a4febbd85501e121306a8c7"
     },
     {
       "path": "src/brickken-mandate.mjs",
@@ -204,8 +204,8 @@
     },
     {
       "path": "src/brickken-postcheck.mjs",
-      "bytes": 26004,
-      "sha256": "6408c269bea41e9d2275dcc9aa8a2ce4c689bc70031af95de33a4fcf2fbc8a6a"
+      "bytes": 26882,
+      "sha256": "7ef5096f9f857404ccf4d5fe34b65e544905e56c3f904a4f6a24960c7233d9cc"
     },
     {
       "path": "src/brickken-prepare.mjs",
@@ -224,13 +224,18 @@
     },
     {
       "path": "src/brickken-workspace.mjs",
-      "bytes": 84242,
-      "sha256": "37f13a85b925382331e09a385fb825a08099ed1845e8cd22550297e43f4a76fe"
+      "bytes": 100937,
+      "sha256": "8f9a166892eb31da25121dcacb0ddab5a22ccce189b9210d206a8b9ead7642c9"
+    },
+    {
+      "path": "src/code-identity.mjs",
+      "bytes": 8362,
+      "sha256": "fb8b3ac4e9e06f837bd4f149ecbe843aca7e215b2940ae06501e524293cda2ec"
     },
     {
       "path": "src/demo-recording.mjs",
-      "bytes": 2319,
-      "sha256": "9edbac51934dcef0d6e3d5710ec27612bcf494deae334f4cbf80523f07158948"
+      "bytes": 2780,
+      "sha256": "fc621d217cc9e0b88f7366e7a8967d880987e755e6aba4856244b6cb15ebc90a"
     },
     {
       "path": "src/domain.mjs",
@@ -239,8 +244,8 @@
     },
     {
       "path": "src/live-lock.mjs",
-      "bytes": 7635,
-      "sha256": "f3978f6b0a18805cc46bc87e5992e5d0173b80262b1c2001a7d826429cce6031"
+      "bytes": 10240,
+      "sha256": "f2f908fcc952f60057260ba54c0fdb6d25077b1b4c06d8f555b08e17de6b9c0d"
     },
     {
       "path": "src/mcp-integration.mjs",
@@ -259,8 +264,8 @@
     },
     {
       "path": "src/server.mjs",
-      "bytes": 12948,
-      "sha256": "06d256e6b71d03fde26593834409c20ac2e6dea8c4d4246b3f829f3afe75df1d"
+      "bytes": 12970,
+      "sha256": "e1cb915e4fc6c25a1661b8e295a3e6cd90fb4ad12bad5e704dd95e8e34f9e696"
     },
     {
       "path": "src/store.mjs",
@@ -303,6 +308,11 @@
       "sha256": "299da91cac8e8f18f5ee36d63d45bfed240a5b18ae6fd97ad239e8fc66cc877e"
     },
     {
+      "path": "test/brickken-live-a1-recheck.test.mjs",
+      "bytes": 58459,
+      "sha256": "edcc5fe502ebda8119a092ce88ccb49f3b5c047dd098e2e54cd65abc83612404"
+    },
+    {
       "path": "test/brickken-live-http.test.mjs",
       "bytes": 28441,
       "sha256": "e6cc533ce7821a0823735b7351662360fa3d60d627ed387e7a82ac9b331c8bf1"
@@ -319,8 +329,8 @@
     },
     {
       "path": "test/brickken-live-recovery.test.mjs",
-      "bytes": 58174,
-      "sha256": "1f623a2974bef6bc473affdbc58127548dc7c698d9dabf961af91a3b95b6c670"
+      "bytes": 61102,
+      "sha256": "1e374f030fbb504b38d5f725adbde2a8c02e52ccae1fa4b3acf7c99cf057b1e8"
     },
     {
       "path": "test/brickken-live-signer.test.mjs",
@@ -329,8 +339,8 @@
     },
     {
       "path": "test/brickken-live-workspace.test.mjs",
-      "bytes": 28898,
-      "sha256": "37759f4b65940c44f21d4b7b1546add6a1e3ca526fefc8f0d6cba0444f78ec35"
+      "bytes": 28942,
+      "sha256": "b0075415476aa40bfa0e9f3b827da1bc6b0c8c4c0c8a6abcf74fdb6164bd51e6"
     },
     {
       "path": "test/brickken-mandate.test.mjs",
@@ -339,8 +349,8 @@
     },
     {
       "path": "test/brickken-postcheck.test.mjs",
-      "bytes": 16128,
-      "sha256": "40136a9904773cebf914eb44b57522b4ed226a83551fe5a3bd2de02795d7d8c5"
+      "bytes": 17607,
+      "sha256": "a36fa0b5243334f2d6139bbe990c02a88d5075eba4736ff2b3fe40e2cc5d4a1a"
     },
     {
       "path": "test/brickken-prepare.test.mjs",
@@ -389,8 +399,8 @@
     },
     {
       "path": "test/live-fakes.mjs",
-      "bytes": 26870,
-      "sha256": "3361911e3435c9713ef594865fc80b984113224db1d55c66a47a7992fbcd01e3"
+      "bytes": 27474,
+      "sha256": "8e81bb415317c487f0fb6251136a5f3fa5a95420c12ee5c164caa54c576520b3"
     },
     {
       "path": "test/mcp-transport.test.mjs",
@@ -409,23 +419,23 @@
     },
     {
       "path": "tools/check-demo.mjs",
-      "bytes": 1235,
-      "sha256": "618e4bd251ba54db93f0351e8770206e773d23c73d9b395913e3f7e96bb9e4ed"
+      "bytes": 1262,
+      "sha256": "0046bac4351c077563a0edbea1f5250c919a6243c670f5767df06b784651b140"
     },
     {
       "path": "tools/export-live-evidence.mjs",
-      "bytes": 10145,
-      "sha256": "81d7c782cc76e6032896d54ecff0c94c4853c2f25e9f9542ecd8d8cdc6962ebe"
+      "bytes": 11071,
+      "sha256": "7f6ec42c9d07875b0a66566fd4c4405beb26abf9d44b880119ee7a98c2a0657e"
     },
     {
       "path": "tools/live-signer.mjs",
-      "bytes": 9770,
-      "sha256": "e87dc4e7d4171c99b608c68d37a07484edf42b39df189af31c91fbe88d15fe7d"
+      "bytes": 10745,
+      "sha256": "399fffee1d1a1c0fcf6ef4f7018e45e02f72c79ef53f9acaa4e6e3027da5ef0d"
     },
     {
       "path": "tools/start-live-signer.ps1",
-      "bytes": 4324,
-      "sha256": "ad6c0193d9aa4698de93b6593c882e79155c7781258c1ad8f9def1b06e19df3e"
+      "bytes": 4867,
+      "sha256": "68476d26be8b9e848e4607a0af7bb37ba631900501d166e487e6414c0e53028d"
     },
     {
       "path": "tools/write-mcp-config.mjs",

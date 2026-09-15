@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { once } from 'node:events';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { Readable } from 'node:stream';
 import { ROOT, Store } from '../src/store.mjs';
@@ -25,9 +25,8 @@ import { BROADCAST_ATTEMPT_WINDOW_MS, MAX_BROADCAST_ATTEMPTS_PER_WINDOW, broadca
 import {
   MAX_PREPARE_ATTEMPTS, MAX_SEND_ATTEMPTS, PREPARE_ATTEMPT_WINDOW_MS, SEND_ATTEMPT_WINDOW_MS, authorizePrepare, authorizeSend
 } from '../src/brickken-live-signer.mjs';
-import {
-  LIVE_LOCK_KIND, LiveLockError, acquireLiveLock, claimStaleLock, createLease, readLockHolder
-} from '../src/live-lock.mjs';
+import { LIVE_LOCK_KIND, LiveLockError, acquireLiveLock, exclusiveOpenSupported, readLockHolder } from '../src/live-lock.mjs';
+import { stableCodeIdentitySha256 } from '../src/code-identity.mjs';
 import { FakeRpc, FakeSepolia, FakeSignerGateway, createClock } from './live-fakes.mjs';
 
 const MINUTE = 60_000;
@@ -75,7 +74,7 @@ async function ownerApproved(env) {
   const owner = ownerOf(env);
   const { run, approval } = await owner.prepareRun();
   env.gateway.setApproval(approval);
-  owner.approveRun({ runId: run.runId, approvalSha256: approval.approvalSha256 });
+  owner.approveRun({ runId: run.runId, approvalSha256: approval.approvalSha256, codeIdentitySha256: run.codeIdentitySha256 });
   return { owner, run, approval };
 }
 async function setupToAwaitingAgent(env) {
@@ -207,7 +206,7 @@ test('A1-F01: a long RPC outage on approve stops with a resumable code, keeps on
   const owner3 = new BrickkenLiveWorkspace(env.dir, { role: 'owner', signer: gateway3.client('owner'), ...env.common, verifySignedTransaction: gateway3.verify });
   const fresh = await owner3.prepareRun();
   gateway3.setApproval(fresh.approval);
-  owner3.approveRun({ runId: fresh.run.runId, approvalSha256: fresh.approval.approvalSha256 });
+  owner3.approveRun({ runId: fresh.run.runId, approvalSha256: fresh.approval.approvalSha256, codeIdentitySha256: fresh.run.codeIdentitySha256 });
   await owner3.startOwnerSetup({ runId: fresh.run.runId });
   await owner3.whenIdle(fresh.run.runId);
   const next = owner3.view().runs.find(item => item.runId === fresh.run.runId);
@@ -358,26 +357,27 @@ test('A1-F02: a journal or workspace lock left by a dead process is taken over; 
     }
   });
 
-  // Dead holder: recovered, and the lock is gone afterwards.
+  // Dead holder: taken over by the next exclusive open, and the file then carries this process's released record.
   fs.writeFileSync(journalLock, JSON.stringify(staleRecord(deadPid())));
   fs.writeFileSync(workspaceLock, JSON.stringify(staleRecord(deadPid())));
   const created = journal.createPending(binding());
   assert.equal(created.state, 'pending');
-  assert.equal(fs.existsSync(journalLock), false);
-  owner.approveRun({ runId: run.runId, approvalSha256: approval.approvalSha256 });
-  assert.equal(fs.existsSync(workspaceLock), false);
+  assert.equal(readLockHolder(journalLock).state, 'released');
+  assert.equal(readLockHolder(journalLock).record.pid, process.pid);
+  owner.approveRun({ runId: run.runId, approvalSha256: approval.approvalSha256, codeIdentitySha256: run.codeIdentitySha256 });
+  assert.equal(readLockHolder(workspaceLock).state, 'released');
 
   // Live holder: the write waits its bounded time, fails with the busy code and leaves the lock.
   for (const [lock, write, code] of [
     [journalLock, () => journal.createPending(binding()), 'JOURNAL_BUSY'],
-    [workspaceLock, () => owner.approveRun({ runId: run.runId, approvalSha256: approval.approvalSha256 }), 'LIVE_WORKSPACE_BUSY']
+    [workspaceLock, () => owner.approveRun({ runId: run.runId, approvalSha256: approval.approvalSha256, codeIdentitySha256: run.codeIdentitySha256 }), 'LIVE_WORKSPACE_BUSY']
   ]) {
     const holder = child('hold', lock, 6000);
     await holder.waitFor('HELD');
     assert.throws(write, { code });
-    assert.equal(readLockHolder(lock).state, 'valid');
+    assert.equal(readLockHolder(lock).state, 'held');
     assert.equal(await holder.exit, 0);
-    assert.equal(readLockHolder(lock).state, 'absent');
+    assert.equal(readLockHolder(lock).state, 'released');
     write();
   }
 
@@ -385,24 +385,26 @@ test('A1-F02: a journal or workspace lock left by a dead process is taken over; 
   const crasher = child('crash', journalLock);
   await crasher.waitFor('HELD');
   assert.equal(await crasher.exit, 3);
+  assert.equal(readLockHolder(journalLock).state, 'valid');
   assert.equal(readLockHolder(journalLock).record.pid, crasher.pid);
   const listBefore = journal.list();
   const recovered = journal.createPending(binding());
   assert.equal(journal.list().length, listBefore.length + 1);
   assert.equal(journal.get(recovered.operationId).state, 'pending');
-  assert.equal(fs.existsSync(journalLock), false);
+  assert.equal(readLockHolder(journalLock).state, 'released');
+  assert.equal(readLockHolder(journalLock).record.pid, process.pid);
 
-  // A fresh empty lock is an unclear owner and blocks with the busy code; it is never taken over.
+  // An empty lock file that no process holds is not a holder record: it is reported and left in place, never taken over.
   fs.writeFileSync(workspaceLock, '');
-  assert.throws(() => owner.approveRun({ runId: run.runId, approvalSha256: approval.approvalSha256 }), { code: 'LIVE_WORKSPACE_BUSY' });
+  assert.throws(() => owner.approveRun({ runId: run.runId, approvalSha256: approval.approvalSha256, codeIdentitySha256: run.codeIdentitySha256 }), { code: 'LIVE_WORKSPACE_LOCK_INVALID' });
   assert.equal(fs.existsSync(workspaceLock), true);
   fs.unlinkSync(workspaceLock);
 
-  // Unreadable content older than the grace period is never treated as dead on age alone.
+  // Unreadable content is never treated as dead, whatever its age: reported with its own code and left in place.
   const past = new Date(Date.now() - 2 * MINUTE);
   for (const [lock, write, code] of [
     [journalLock, () => journal.createPending(binding()), 'JOURNAL_LOCK_INVALID'],
-    [workspaceLock, () => owner.approveRun({ runId: run.runId, approvalSha256: approval.approvalSha256 }), 'LIVE_WORKSPACE_LOCK_INVALID']
+    [workspaceLock, () => owner.approveRun({ runId: run.runId, approvalSha256: approval.approvalSha256, codeIdentitySha256: run.codeIdentitySha256 }), 'LIVE_WORKSPACE_LOCK_INVALID']
   ]) {
     fs.writeFileSync(lock, '');
     fs.utimesSync(lock, past, past);
@@ -414,29 +416,37 @@ test('A1-F02: a journal or workspace lock left by a dead process is taken over; 
   }
 });
 
-test('A1-F03: two recoverers of one stale run lock end with one owner; the loser never removes the winner and a dead lease never releases a live lock', async () => {
+test('A1-F03: the run lock is an exclusive process-bound handle: a stale record is taken over by the next exclusive open, a live holder cannot be read, renamed, unlinked or displaced by anyone, a release never touches a later holder, and racing processes never overlap', async () => {
+  assert.equal(exclusiveOpenSupported(), true);
   const dir = testDir('lock-race');
   const file = path.join(dir, 'live-run.lock');
   const stale = staleRecord(deadPid());
   fs.writeFileSync(file, JSON.stringify(stale));
+  assert.equal(readLockHolder(file).state, 'valid');
 
-  // Deterministic interleaving of the protocol steps.
-  const a = readLockHolder(file);
-  const b = readLockHolder(file);
-  assert.equal(a.record.ownerId, stale.ownerId);
-  assert.equal(claimStaleLock(file, a.record).outcome, 'claimed');
+  // S -> A: the stale record is taken over within one exclusive open; no rename, no second step.
   const leaseA = acquireLiveLock(file, { holder: { purpose: 'A' } });
+  assert.equal(leaseA.protocol, 'exclusive-handle');
   assert.ok(leaseA.holds());
-  // B acts on its earlier reading: the file at the path is A's live lock now, so B's claim is undone.
-  const claimB = claimStaleLock(file, b.record);
-  assert.equal(claimB.outcome, 'restored');
-  assert.ok(leaseA.holds());
+  assert.equal(readLockHolder(file).state, 'held');
+  // B, whatever it read earlier, cannot open, rename, unlink or read the path while A holds it: the OS refuses, not a comparison.
   assert.throws(() => acquireLiveLock(file, { attempts: 1, busyCode: 'LIVE_RUN_BUSY' }), error => error instanceof LiveLockError && error.code === 'LIVE_RUN_BUSY');
-  // The dead owner's own release does nothing to A's lock.
-  assert.equal(createLease(file, stale).release(), false);
+  assert.throws(() => fs.renameSync(file, `${file}.claim`), error => error.code === 'EBUSY');
+  assert.throws(() => fs.unlinkSync(file), error => error.code === 'EBUSY');
+  assert.throws(() => fs.readFileSync(file), error => error.code === 'EBUSY');
   assert.ok(leaseA.holds());
+  // A releases: its record is marked released through its own handle and the handle closes. C takes over.
   assert.equal(leaseA.release(), true);
-  assert.equal(readLockHolder(file).state, 'absent');
+  assert.equal(readLockHolder(file).state, 'released');
+  const leaseC = acquireLiveLock(file, { holder: { purpose: 'C' } });
+  assert.ok(leaseC.holds());
+  // A's second release and A's ownership check do nothing to C; a fourth acquirer is busy while C holds.
+  assert.equal(leaseA.release(), false);
+  assert.equal(leaseA.holds(), false);
+  assert.throws(() => acquireLiveLock(file, { attempts: 2, waitMs: 1, busyCode: 'LIVE_RUN_BUSY' }), error => error instanceof LiveLockError && error.code === 'LIVE_RUN_BUSY');
+  assert.ok(leaseC.holds());
+  assert.equal(leaseC.release(), true);
+  assert.equal(readLockHolder(file).record.purpose, 'C');
 
   // Real processes racing for the same stale lock.
   fs.writeFileSync(file, JSON.stringify(staleRecord(deadPid())));
@@ -450,7 +460,7 @@ test('A1-F03: two recoverers of one stale run lock end with one owner; the loser
   for (const loser of losers) assert.equal(loser.code, 'LIVE_RUN_BUSY', JSON.stringify(loser));
   for (const winner of winners) { assert.equal(winner.held, true); assert.equal(winner.released, true); }
   for (let index = 1; index < winners.length; index++) assert.ok(winners[index].start >= winners[index - 1].end, 'two holders overlapped');
-  assert.equal(readLockHolder(file).state, 'absent');
+  assert.equal(readLockHolder(file).state, 'released');
 });
 
 // ---------------------------------------------------------------------------
@@ -501,6 +511,9 @@ test('A1-F05: a step advances only when both sources show the required depth, an
   const env = environment();
   const { run } = await setupToAwaitingAgent(env);
   env.rpcs.secondary.faults.lagBlocks = 3;
+  // Since 2026-09-15 a source without the control block leaves execute waiting (CONTROL_UNRESOLVED),
+  // so the lagging source is given the blocks it needs to show the control block before the agent acts.
+  await env.sleep(3 * 12 * 1000);
   const receipt = await driveAgentExecute(agentOf(env), opId(run, 'execute'), 20);
   assert.equal(receipt.execute.status, 'verified', JSON.stringify(receipt.stop));
   const record = journalOf(env).get(opId(run, 'execute'));
@@ -758,8 +771,8 @@ test('A1-F09: cleanup after the mandate expired revokes it, resets the allowance
 // ---------------------------------------------------------------------------
 // A1-F10: the evidence export has one explicit completeness rule
 
-function exportEvidence(env, run, extra = []) {
-  const output = path.relative(ROOT, path.join(ROOT, 'test-output', `fable-a1-export-${randomUUID().slice(0, 8)}`));
+function exportEvidence(env, run, extra = [], target = null) {
+  const output = target ?? path.relative(ROOT, path.join(ROOT, 'test-output', `fable-a1-export-${randomUUID().slice(0, 8)}`));
   const result = spawnSync(process.execPath, [
     path.join(ROOT, 'tools', 'export-live-evidence.mjs'), '--data', path.relative(ROOT, env.dir), '--run', run.runId, '--output', output, ...extra
   ], { cwd: ROOT, encoding: 'utf8', windowsHide: true });
@@ -830,7 +843,15 @@ test('A1-F11: a live recording without a server-side binding is refused, an inco
   assert.throws(() => owner.recordingBinding(run.runId), error => error.code === 'RECORDING_RUN_INCOMPLETE' && error.details.missing.includes('FINALITY_MISSING'));
   await env.sleep(40 * 12 * 1000);
   assert.equal((await owner.refreshFinality({ runId: run.runId })).allFinalized, true);
-  const binding = owner.recordingBinding(run.runId);
+  // Since the recheck of 2026-09-15 the binding needs the exported package: the recording names its hash.
+  assert.throws(() => owner.recordingBinding(run.runId), { code: 'RECORDING_PACKAGE_REQUIRED' });
+  const packageRoot = path.relative(ROOT, testDir('packages')).split(path.sep).join('/');
+  const exported = exportEvidence(env, run, [], `${packageRoot}/sepolia-live-${run.runId.slice(5, 17)}`);
+  assert.equal(exported.status, 0, exported.stderr);
+  const packaged = ownerOf(env, { evidencePackageRoot: packageRoot });
+  const binding = packaged.recordingBinding(run.runId);
+  assert.equal(binding.evidencePackage.directory, `${packageRoot}/sepolia-live-${run.runId.slice(5, 17)}`);
+  assert.equal(binding.evidencePackage.sha256sumsSha256, createHash('sha256').update(fs.readFileSync(path.join(exported.output, 'SHA256SUMS.json'))).digest('hex'));
   assert.equal(binding.runId, run.runId);
   assert.equal(binding.approvalSha256, run.approvalSha256);
   assert.equal(binding.proposalHash, env.proposal.proposalHash);
@@ -852,7 +873,7 @@ test('A1-F11: a live recording without a server-side binding is refused, an inco
   assert.match(metadata.bindingSha256, /^[a-f0-9]{64}$/);
 
   // The HTTP route: the page names the run, the server decides.
-  const server = createApp({ store: new Store(env.dir), liveWorkspace: owner });
+  const server = createApp({ store: new Store(env.dir), liveWorkspace: packaged });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   const origin = `http://127.0.0.1:${server.address().port}`;
@@ -950,7 +971,11 @@ test('A1 clarification: prepareRun names the code identity hash separately, and 
   const { run, approval, codeIdentitySha256 } = await owner.prepareRun();
   assert.match(codeIdentitySha256, /^[a-f0-9]{64}$/);
   assert.equal(run.codeIdentitySha256, codeIdentitySha256);
-  assert.equal(codeIdentitySha256, sha256Canonical(evidence(env, run, 'code-identity')));
+  // The stable hash covers the sorted file table only; the recording time and the git head are metadata.
+  const identity = evidence(env, run, 'code-identity');
+  assert.equal(identity.schemaVersion, 2);
+  assert.equal(identity.codeIdentitySha256, codeIdentitySha256);
+  assert.equal(stableCodeIdentitySha256(identity), codeIdentitySha256);
   assert.notEqual(codeIdentitySha256, approval.approvalSha256);
   // The approval rebuilds byte for byte from the plan and the preflight alone.
   assert.equal(validateRunApproval(approval, env.proposal).approvalSha256, approval.approvalSha256);

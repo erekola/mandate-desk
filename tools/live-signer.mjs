@@ -9,6 +9,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
+// The code identity module is imported first so the process identity is the
+// disk state at startup, before the application modules below are evaluated.
+import { PROCESS_CODE_IDENTITY_SHA256 } from '../src/code-identity.mjs';
 import { ROOT, boundedPath } from '../src/store.mjs';
 import { loadLiveProposal } from '../src/brickken-live-plan.mjs';
 import { LiveSigner, LiveSignerError } from '../src/brickken-live-signer.mjs';
@@ -29,7 +32,7 @@ function stop(message) {
 }
 
 function parseArguments(args) {
-  const allowed = new Set(['--approval', '--approval-sha256', '--wallet-dir', '--data']);
+  const allowed = new Set(['--approval', '--approval-sha256', '--code-identity-sha256', '--wallet-dir', '--data']);
   const settings = {};
   for (let index = 0; index < args.length; index += 2) {
     const name = args[index];
@@ -37,11 +40,13 @@ function parseArguments(args) {
     if (!allowed.has(name) || typeof value !== 'string' || !value || Object.hasOwn(settings, name)) stop('invalid arguments.');
     settings[name] = value;
   }
-  if (Object.keys(settings).length !== allowed.size) stop('all four arguments are required.');
+  if (Object.keys(settings).length !== allowed.size) stop('all five arguments are required.');
   if (!/^[a-f0-9]{64}$/.test(settings['--approval-sha256'])) stop('the approval hash must be 64 lowercase hexadecimal characters.');
+  if (!/^[a-f0-9]{64}$/.test(settings['--code-identity-sha256'])) stop('the code identity hash must be 64 lowercase hexadecimal characters.');
   return {
     approvalFile: boundedPath(path.resolve(ROOT, settings['--approval'])),
     approvalSha256: settings['--approval-sha256'],
+    codeIdentitySha256: settings['--code-identity-sha256'],
     walletDirectory: path.resolve(settings['--wallet-dir']),
     dataDirectory: boundedPath(path.resolve(ROOT, settings['--data']))
   };
@@ -81,6 +86,11 @@ function writeFileAtomic(file, text) {
 
 async function main() {
   const settings = parseArguments(process.argv.slice(2));
+  // The signer serves only the code identity the run was approved for. A
+  // different identity on disk at startup stops here, before any key is read.
+  if (settings.codeIdentitySha256 !== PROCESS_CODE_IDENTITY_SHA256) {
+    stop(`the code identity on disk (${PROCESS_CODE_IDENTITY_SHA256}) is not the approved one (${settings.codeIdentitySha256}).`);
+  }
   const proposal = loadLiveProposal();
   let approval;
   try {
@@ -110,7 +120,7 @@ async function main() {
   let signer;
   try {
     signer = new LiveSigner({
-      proposal, approval, approvalSha256: settings.approvalSha256, keys,
+      proposal, approval, approvalSha256: settings.approvalSha256, codeIdentitySha256: settings.codeIdentitySha256, keys,
       stateDirectory: path.join(liveDirectory, 'signer'), credential: apiKey
     });
   } catch (error) {
@@ -192,11 +202,12 @@ async function main() {
     writeFileAtomic(tokenFiles.agent, tokens.agent);
     writeFileAtomic(endpointFile, JSON.stringify({
       schemaVersion: 1, kind: 'mandate-desk-live-signer-endpoint', port, pid: process.pid,
-      approvalSha256: signer.approval.approvalSha256, notAfter: signer.approval.notAfter,
+      approvalSha256: signer.approval.approvalSha256, codeIdentitySha256: signer.codeIdentitySha256, notAfter: signer.approval.notAfter,
       startedAt: new Date().toISOString()
     }, null, 2));
     console.log('Mandate Desk live signer is ready.');
     console.log(`Run approval: ${signer.approval.approvalSha256}`);
+    console.log(`Code identity: ${signer.codeIdentitySha256}`);
     console.log(`Approval valid until: ${signer.approval.notAfter}`);
     console.log(`Owner address: ${proposal.principal}`);
     console.log(`Agent address: ${proposal.agent}`);

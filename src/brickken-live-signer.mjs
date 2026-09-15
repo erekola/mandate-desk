@@ -233,11 +233,17 @@ export class LiveSigner {
   #fetchImpl;
   #document;
 
-  constructor({ proposal, approval, approvalSha256, keys, stateDirectory, credential, fetchImpl = globalThis.fetch, now = () => Date.now() }) {
+  // codeIdentitySha256 is the stable code identity the signer process was
+  // started for (tools/live-signer.mjs compares it with its own before it
+  // starts); status() reports it so the owner and agent workspaces can refuse
+  // a signer that runs other bytes than the run was approved for.
+  constructor({ proposal, approval, approvalSha256, codeIdentitySha256 = null, keys, stateDirectory, credential, fetchImpl = globalThis.fetch, now = () => Date.now() }) {
     if (typeof now !== 'function' || typeof fetchImpl !== 'function') fail('CONFIGURATION');
     this.proposal = proposal;
     this.approval = planned(() => validateRunApproval(approval, proposal));
     if (typeof approvalSha256 !== 'string' || approvalSha256 !== this.approval.approvalSha256) fail('APPROVAL_HASH_MISMATCH');
+    if (codeIdentitySha256 !== null && (typeof codeIdentitySha256 !== 'string' || !/^[a-f0-9]{64}$/.test(codeIdentitySha256))) fail('CONFIGURATION');
+    this.codeIdentitySha256 = codeIdentitySha256;
     shape(keys, SIGNER_ROLES, 'KEYS_INVALID');
     if (signingKeyAddress(keys.owner) !== proposal.principal || signingKeyAddress(keys.agent) !== proposal.agent) {
       fail('KEY_ADDRESS_MISMATCH');
@@ -259,6 +265,7 @@ export class LiveSigner {
   status() {
     return {
       approvalSha256: this.approval.approvalSha256,
+      codeIdentitySha256: this.codeIdentitySha256,
       notAfter: this.approval.notAfter,
       active: this.now() >= Date.parse(this.approval.createdAt) && this.now() < Date.parse(this.approval.notAfter),
       owner: this.proposal.principal,

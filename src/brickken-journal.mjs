@@ -610,7 +610,8 @@ function validateLiveConfirmation(value, signed) {
   if (!signed || value.transactionHash !== signed.ethereumTransactionHash ||
       hash32(value.blockHash) !== value.blockHash || value.secondaryBlockHash !== value.blockHash ||
       ![0, 1].includes(value.receiptStatus) ||
-      !Number.isSafeInteger(value.confirmations) || value.confirmations < 1) fail('JOURNAL_CORRUPT');
+      // A recheck with one source missing stores 0: the depth is then unknown, not one.
+      !Number.isSafeInteger(value.confirmations) || value.confirmations < 0) fail('JOURNAL_CORRUPT');
   uint(value.blockNumber); iso(value.checkedAt);
   return value;
 }
@@ -915,24 +916,31 @@ export class LiveBrickkenJournal {
   }
 
   // A different block hash at the recorded height from either source is a
-  // reorganisation: the confirmation and any semantic result are withdrawn.
+  // reorganisation: the confirmation and any semantic result are withdrawn. A
+  // source that returned no block at that height passes null for its hash; it
+  // proves nothing, so the state is kept but the stored depth becomes the
+  // observed one, which is 0 while a source is missing. A missing source never
+  // hides the other source's differing hash.
   recheckConfirmation(operationId, observation) {
     shape(observation, LIVE_RECHECK_KEYS);
     const at = iso(observation.checkedAt);
-    if (!Number.isSafeInteger(observation.confirmations) || observation.confirmations < 1) fail('CONFIRMATIONS');
+    if (!Number.isSafeInteger(observation.confirmations) || observation.confirmations < 0) fail('CONFIRMATIONS');
+    const observed = value => (value === null ? null : hash32(value));
+    const primaryHash = observed(observation.blockHash);
+    const secondaryHash = observed(observation.secondaryBlockHash);
     return this.#writeTransaction(document => {
       const record = this.#find(document, operationId);
       if (!['confirmed', 'reverted', 'semantically_verified'].includes(record.state) || !record.confirmation) {
         fail('CONFIRMATION_REQUIRED');
       }
-      const matches = hash32(observation.transactionHash) === record.confirmation.transactionHash &&
-        uint(observation.blockNumber) === record.confirmation.blockNumber &&
-        hash32(observation.blockHash) === record.confirmation.blockHash &&
-        hash32(observation.secondaryBlockHash) === record.confirmation.blockHash;
-      if (matches) {
+      const recorded = record.confirmation.blockHash;
+      const identity = hash32(observation.transactionHash) === record.confirmation.transactionHash &&
+        uint(observation.blockNumber) === record.confirmation.blockNumber;
+      const differs = hash => hash !== null && hash !== recorded;
+      if (identity && !differs(primaryHash) && !differs(secondaryHash)) {
         // The current depth replaces the stored one: a count is never kept from an earlier, deeper reading.
         record.confirmation.checkedAt = at;
-        record.confirmation.confirmations = observation.confirmations;
+        record.confirmation.confirmations = (primaryHash === null || secondaryHash === null) ? 0 : observation.confirmations;
         record.updatedAt = at;
         return record;
       }

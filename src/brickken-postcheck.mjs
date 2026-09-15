@@ -322,8 +322,18 @@ export function verifyGrantPostcheck(input, trustedExpected, options) {
     wordUint(grantWords[10]) === expected.maxCumulativeValue && '0x' + grantWords[11] === expected.metadata &&
     wordUint(grantWords[12]) === '384' && wordUint(grantWords[13]) === '0' && wordUint(grantWords[14]) === '1' &&
     '0x' + grantWords[15] === hash32(s.action) && wordUint(grantWords[16]) === '0', 'SEMANTIC_CALLDATA_MISMATCH');
-  check((beforeMandate === null || beforeMandate.revoked === true) && n.before.state.actionEnabled === false,
-    'STALE_GRANT_STATE');
+  // Two before-states are accepted, both read from the registry's state machine
+  // (AgentMandate.grantMandate reverts only for an active mandate, and
+  // revokeMandate sets the revoked flag without clearing the enabled actions):
+  // a first grant for the pair, where no mandate or a revoked one exists and
+  // the action is not enabled; and a reuse of the same agent and principal
+  // pair, where the earlier mandate is revoked and the action stayed enabled.
+  // An active earlier mandate, a different pair or an enabled action without a
+  // revoked mandate of this pair is stale state.
+  const samePair = beforeMandate !== null && beforeMandate.agent === expected.agent && beforeMandate.principal === expected.principal;
+  const firstGrant = (beforeMandate === null || beforeMandate.revoked === true) && n.before.state.actionEnabled === false;
+  const pairReuse = samePair && beforeMandate.revoked === true && n.before.state.actionEnabled === true;
+  check(firstGrant || pairReuse, 'STALE_GRANT_STATE');
   check(equal(afterMandate, expected) && n.after.state.actionEnabled === true, 'MANDATE_STATE_MISMATCH');
   const registry = address(s.registry), granted = oneEvent(n.receipt, registry, EVENT_TOPICS.MandateGranted);
   const enabled = oneEvent(n.receipt, registry, EVENT_TOPICS.ActionEnabled);

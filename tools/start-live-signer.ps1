@@ -9,8 +9,11 @@
 # also when the write fails, before it waits for the signer to exit.
 # Clearing a managed string variable does not wipe the bytes cryptographically;
 # it releases the reference so the launcher keeps no live copy for the run.
+# The run approval hash and the code identity hash are both named at start:
+# the signer refuses to serve if the source bytes on disk have another identity.
 param(
     [Parameter(Mandatory = $true)][string]$ApprovalSha256,
+    [Parameter(Mandatory = $true)][string]$CodeIdentitySha256,
     [Parameter(Mandatory = $true)][string]$WalletDirectory,
     [string]$Data = '.local-demo'
 )
@@ -19,6 +22,7 @@ $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
 if ($ApprovalSha256 -cnotmatch '^[a-f0-9]{64}$') { throw 'The approval hash must be 64 lowercase hexadecimal characters.' }
+if ($CodeIdentitySha256 -cnotmatch '^[a-f0-9]{64}$') { throw 'The code identity hash must be 64 lowercase hexadecimal characters.' }
 if ($Data -notmatch '^[A-Za-z0-9._-]+$') { throw 'The data directory must be a simple folder name inside the repository.' }
 $approvalRelative = $Data + '/live/run-approval-' + $ApprovalSha256.Substring(0, 16) + '.json'
 if (-not (Test-Path -LiteralPath (Join-Path $root $approvalRelative) -PathType Leaf)) {
@@ -40,6 +44,7 @@ function Format-Argument([string]$value) {
 
 Write-Host 'Mandate Desk live signer'
 Write-Host ('Run approval: ' + $ApprovalSha256)
+Write-Host ('Code identity: ' + $CodeIdentitySha256)
 Write-Host 'Copy the Brickken sandbox API key to the clipboard. Do not paste it into this window.'
 # Hidden input also protects an accidental paste into the Enter prompt.
 $null = Read-Host 'Press Enter when the key is on the clipboard' -AsSecureString
@@ -57,12 +62,13 @@ Write-Host 'Unlocking the two test keystores. This takes a few seconds.'
 # The signer is started as a child process with only its standard input
 # redirected, so its output stays on this console. The payload is written once
 # and the launcher's references are released in the same step, on success and
-# on failure alike, before the signer serves any request.
+# on failure alike. The release concerns only this launcher's copies; it says
+# nothing about when the signer has read the input or starts serving.
 $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
 $startInfo.FileName = $node
 $startInfo.UseShellExecute = $false
 $startInfo.RedirectStandardInput = $true
-$arguments = @($signer, '--approval', $approvalRelative, '--approval-sha256', $ApprovalSha256, '--wallet-dir', $WalletDirectory, '--data', $Data)
+$arguments = @($signer, '--approval', $approvalRelative, '--approval-sha256', $ApprovalSha256, '--code-identity-sha256', $CodeIdentitySha256, '--wallet-dir', $WalletDirectory, '--data', $Data)
 $startInfo.Arguments = ($arguments | ForEach-Object { Format-Argument $_ }) -join ' '
 $process = $null
 try {

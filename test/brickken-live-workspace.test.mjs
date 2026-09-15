@@ -52,7 +52,7 @@ async function ownerApproved(env) {
   const owner = ownerOf(env);
   const { run, approval } = await owner.prepareRun();
   env.gateway.setApproval(approval);
-  owner.approveRun({ runId: run.runId, approvalSha256: approval.approvalSha256 });
+  owner.approveRun({ runId: run.runId, approvalSha256: approval.approvalSha256, codeIdentitySha256: run.codeIdentitySha256 });
   return { owner, run, approval };
 }
 

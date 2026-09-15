@@ -137,7 +137,7 @@ export function createApp({ store = new Store(), integrationWorkspace, liveWorks
         let result;
         switch (req.url) {
           case '/api/live/prepare': domain.strictObject(input, []); result = await live.prepareRun(); break;
-          case '/api/live/approve': domain.strictObject(input, ['runId', 'approvalSha256']); result = live.approveRun(input); break;
+          case '/api/live/approve': domain.strictObject(input, ['runId', 'approvalSha256', 'codeIdentitySha256']); result = live.approveRun(input); break;
           case '/api/live/start-setup': domain.strictObject(input, ['runId']); result = await live.startOwnerSetup(input); break;
           case '/api/live/start-revocation': domain.strictObject(input, ['runId']); result = await live.startOwnerRevocation(input); break;
           case '/api/live/cleanup': domain.strictObject(input, ['runId']); result = await live.startCleanup(input); break;

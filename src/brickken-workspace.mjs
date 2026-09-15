@@ -57,10 +57,13 @@ import {
   decodeRevert,
   decodeUintReturn,
   expectedCalldata,
+  grantValidFrom,
   loadLiveProposal,
   readCalls,
   validateRunApproval
 } from './brickken-live-plan.mjs';
+import { EVENT_TOPICS } from './brickken-postcheck.mjs';
+import { PROCESS_CODE_IDENTITY_SHA256, codeIdentityEvidence, computeCodeIdentity, readGitHead } from './code-identity.mjs';
 import {
   LiveSignerClient,
   LiveStepExecutor,
@@ -694,41 +697,35 @@ const STOP_DETAIL_KEYS = [
   'layer', 'step', 'check', 'rpcCode', 'status', 'signerStatus', 'apiErrorCode', 'transactionHash', 'nonce', 'field',
   'endpoint', 'operationId', 'controlId', 'blockers', 'revert', 'cause', 'method', 'baseFeePerGas', 'estimate',
   'balanceWei', 'steps', 'blockHash', 'purpose', 'notAfter', 'attempts', 'journalState', 'backoffUntil', 'lockFile',
-  'controlIds', 'missing', 'to', 'from'
+  'controlIds', 'missing', 'to', 'from', 'reason', 'required', 'confirmationsPrimary', 'confirmationsSecondary',
+  'dependencyOperationId', 'codeIdentitySha256', 'processCodeIdentitySha256', 'diskCodeIdentitySha256', 'phase',
+  'platform', 'packageDirectory', 'attributed', 'mandate'
 ];
 
 function liveDocumentHash(value) {
   return sha256Canonical({ schemaVersion: value.schemaVersion, kind: value.kind, proposalHash: value.proposalHash, runs: value.runs });
 }
 function isoAt(milliseconds) { return new Date(milliseconds).toISOString(); }
-// Binds a run to the exact source bytes it used. gitHead is read from the .git
-// files without running git; uncommitted edits show only in the file hashes.
-function codeIdentity(recordedAt) {
-  const files = [];
-  const add = relative => {
-    const full = path.join(ROOT, relative);
-    if (fs.statSync(full, { throwIfNoEntry: false })?.isFile()) {
-      files.push({ path: relative.split(path.sep).join('/'), sha256: createHash('sha256').update(fs.readFileSync(full)).digest('hex') });
-    }
+// The evidence document of the source bytes on disk right now: the stable
+// identity (src/code-identity.mjs) plus the recording time and the git head as
+// metadata. The stable hash is the value a run is approved for and compared
+// against before every write; the metadata never changes it.
+function identityNow(recordedAt) {
+  const identity = computeCodeIdentity();
+  return { codeIdentitySha256: identity.codeIdentitySha256, evidence: codeIdentityEvidence(identity, { recordedAt, gitHead: readGitHead() }) };
+}
+// The mandate a grant calldata of the reviewed plan creates, by identity field.
+function grantMandateFromCalldata(data) {
+  const word = index => data.slice(10 + index * 64, 10 + (index + 1) * 64);
+  const addressOf = index => '0x' + word(index).slice(24);
+  const uintOf = index => BigInt('0x' + word(index)).toString();
+  return {
+    agent: addressOf(2), validFrom: uintOf(3), validUntil: uintOf(4), principal: addressOf(5), complianceProvider: addressOf(6),
+    identityRef: '0x' + word(7), asset: addressOf(8), maxTransactionValue: uintOf(9), maxCumulativeValue: uintOf(10), metadata: '0x' + word(11)
   };
-  for (const folder of ['src', 'public', 'tools']) {
-    for (const name of fs.readdirSync(path.join(ROOT, folder)).sort()) add(path.join(folder, name));
-  }
-  for (const relative of ['integration/live-proposal.json', 'vendor/ethers-6.17.0/ethers.umd.min.cjs', 'package.json']) add(relative);
-  let gitHead = null;
-  try {
-    const head = fs.readFileSync(path.join(ROOT, '.git', 'HEAD'), 'utf8').trim();
-    if (/^[a-f0-9]{40}$/.test(head)) gitHead = head;
-    else if (/^ref: refs\/heads\/[A-Za-z0-9._\/-]+$/.test(head)) {
-      const ref = head.slice(5);
-      const loose = path.join(ROOT, '.git', ...ref.split('/'));
-      if (fs.existsSync(loose)) gitHead = fs.readFileSync(loose, 'utf8').trim();
-      else gitHead = fs.readFileSync(path.join(ROOT, '.git', 'packed-refs'), 'utf8').split('\n')
-        .find(line => line.endsWith(' ' + ref))?.slice(0, 40) ?? null;
-    }
-    if (gitHead !== null && !/^[a-f0-9]{40}$/.test(gitHead)) gitHead = null;
-  } catch { gitHead = null; }
-  return { schemaVersion: 1, kind: 'mandate-desk-code-identity', recordedAt, gitHead, files };
+}
+function sameMandateIdentity(mandate, planned) {
+  return Object.keys(planned).every(key => mandate[key] === planned[key]);
 }
 // Maps a live lock refusal to the workspace code of the file it concerns.
 function lockFailure(error, prefix) {
@@ -738,9 +735,14 @@ function lockFailure(error, prefix) {
     return new BrickkenWorkspaceError(`${prefix}_LOCK_INVALID`,
       `The ${file} file has unreadable content and was left in place. Check that no Mandate Desk process is running, then remove it by hand.`, { lockFile: file });
   }
-  if (error.code === 'LOCK_CONFLICT') {
-    return new BrickkenWorkspaceError(`${prefix}_LOCK_CONFLICT`,
-      `Two processes recovered the ${file} file at the same time. The displaced record was kept beside it; retry once no other live action runs.`, { lockFile: file });
+  if (error.code === 'LOCK_DIRECTORY_MISSING') {
+    return new BrickkenWorkspaceError(`${prefix}_LOCK_DIRECTORY_MISSING`,
+      `The folder of the ${file} file does not exist any more. Nothing was written; check the data directory before retrying.`, { lockFile: file });
+  }
+  if (error.code === 'LOCK_UNSUPPORTED') {
+    return new BrickkenWorkspaceError(`${prefix}_LOCK_UNSUPPORTED`,
+      `The live lock needs an exclusive file open bound to the process, which could not be verified on ${error.details?.platform ?? 'this platform'}. The live run works on Windows.`,
+      { lockFile: file, platform: error.details?.platform ?? null });
   }
   return new BrickkenWorkspaceError(error.code,
     prefix === 'LIVE_RUN' ? 'Another live action is running. Wait for it to finish.' : 'The live workspace is busy. Try again.',
@@ -814,10 +816,14 @@ function validateLiveDocument(value, proposalHash) {
 export class BrickkenLiveWorkspace {
   #jobs = new Map();
 
-  constructor(directory, { role, rpcs, signer, now = () => Date.now(), sleep, pollMs, verifySignedTransaction, fetchImpl = globalThis.fetch } = {}) {
+  // evidencePackageRoot is where tools/export-live-evidence.mjs writes the public
+  // package (verification/ by default); a recording binds to the package there.
+  constructor(directory, { role, rpcs, signer, now = () => Date.now(), sleep, pollMs, verifySignedTransaction, fetchImpl = globalThis.fetch, evidencePackageRoot = 'verification' } = {}) {
     if (!['owner', 'agent'].includes(role)) fail('INVALID_ROLE', 'The live workspace needs the owner or agent role.');
     if (typeof now !== 'function') fail('INVALID_TIME', 'The live workspace clock is invalid.');
+    if (typeof evidencePackageRoot !== 'string' || !/^[A-Za-z0-9._\/-]{1,200}$/.test(evidencePackageRoot)) fail('INVALID_INPUT', 'The evidence package root is invalid.');
     this.role = role;
+    this.evidencePackageRoot = evidencePackageRoot;
     this.nowMs = () => {
       const value = now();
       if (!Number.isSafeInteger(value) || value <= 0) fail('INVALID_TIME', 'The live workspace requires an exact current time.');
@@ -878,8 +884,8 @@ export class BrickkenLiveWorkspace {
     try {
       const status = await this.signer.status();
       return {
-        available: true, role: status.role, approvalSha256: status.approvalSha256, notAfter: status.notAfter,
-        active: status.active, signedSteps: Array.isArray(status.signed) ? status.signed.map(item => item.step) : []
+        available: true, role: status.role, approvalSha256: status.approvalSha256, codeIdentitySha256: status.codeIdentitySha256 ?? null,
+        notAfter: status.notAfter, active: status.active, signedSteps: Array.isArray(status.signed) ? status.signed.map(item => item.step) : []
       };
     } catch (error) {
       return { available: false, code: classifyLiveError(error).code };
@@ -913,10 +919,14 @@ export class BrickkenLiveWorkspace {
         createdAt: isoAt(createdAtMs), notAfter: isoAt(createdAtMs + LIVE_APPROVAL_LIFETIME_MS), preflight
       });
       // The approval hash binds the operational plan and the preflight only. The
-      // source bytes are identified separately, so a run approval request names
-      // both hashes and normal progress never depends on changing files.
-      const identity = codeIdentity(approval.createdAt);
-      const codeIdentitySha256 = sha256Canonical(identity);
+      // source bytes are identified separately by their stable hash, so a run
+      // approval names both hashes. The process that prepares the run must be
+      // running the bytes on disk, otherwise the identity it records is not its own.
+      const { codeIdentitySha256, evidence: identity } = identityNow(approval.createdAt);
+      if (codeIdentitySha256 !== PROCESS_CODE_IDENTITY_SHA256) {
+        fail('CODE_IDENTITY_MISMATCH', 'The source code on disk differs from the code this process started with. Restart the owner workspace from the current code before preparing a plan.',
+          { phase: 'prepare', processCodeIdentitySha256: PROCESS_CODE_IDENTITY_SHA256, diskCodeIdentitySha256: codeIdentitySha256 });
+      }
       const approvalFile = `run-approval-${approval.approvalSha256.slice(0, 16)}.json`;
       fs.writeFileSync(boundedPath(path.join(this.liveDirectory, approvalFile)), JSON.stringify(approval, null, 2), { flag: 'wx' });
       const runId = `live_${randomUUID().replaceAll('-', '')}`;
@@ -960,17 +970,24 @@ export class BrickkenLiveWorkspace {
     }
   }
 
-  approveRun({ runId, approvalSha256 }) {
+  // The owner approves two hashes: the exact plan and the exact source
+  // identity the run was prepared from. Both are stored in the approval record
+  // and both are checked again before every write of the run.
+  approveRun({ runId, approvalSha256, codeIdentitySha256 }) {
     this.#requireRole('owner');
     if (typeof approvalSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(approvalSha256)) fail('INVALID_INPUT', 'The approval hash is invalid.');
+    if (typeof codeIdentitySha256 !== 'string' || !/^[a-f0-9]{64}$/.test(codeIdentitySha256)) fail('INVALID_INPUT', 'The code identity hash is invalid.');
     const approval = this.approvalDocument(runId);
     if (approval.approvalSha256 !== approvalSha256) fail('APPROVAL_HASH_MISMATCH', 'Approval applies only to the exact plan hash shown for this run.');
-    this.#update(runId, run => {
-      if (run.status === 'owner-approved' && run.ownerApproval?.approvalSha256 === approvalSha256) return;
-      if (run.status !== 'awaiting-owner-approval') fail('RUN_STATE', 'This run is not waiting for owner approval.');
-      if (this.nowMs() >= Date.parse(run.notAfter)) fail('APPROVAL_EXPIRED', 'This plan expired. Prepare a fresh plan.');
-      run.ownerApproval = { approvedAt: isoAt(this.nowMs()), approvalSha256 };
-      run.status = 'owner-approved';
+    const run = this.#run(runId);
+    if (run.codeIdentitySha256 !== codeIdentitySha256) fail('CODE_IDENTITY_MISMATCH', 'Approval applies only to the exact source code identity shown for this run.', { phase: 'approve', codeIdentitySha256: run.codeIdentitySha256 ?? null });
+    this.#requireCodeIdentity(run, 'approve', { evidence: false });
+    this.#update(runId, item => {
+      if (item.status === 'owner-approved' && item.ownerApproval?.approvalSha256 === approvalSha256 && item.ownerApproval?.codeIdentitySha256 === codeIdentitySha256) return;
+      if (item.status !== 'awaiting-owner-approval') fail('RUN_STATE', 'This run is not waiting for owner approval.');
+      if (this.nowMs() >= Date.parse(item.notAfter)) fail('APPROVAL_EXPIRED', 'This plan expired. Prepare a fresh plan.');
+      item.ownerApproval = { approvedAt: isoAt(this.nowMs()), approvalSha256, codeIdentitySha256 };
+      item.status = 'owner-approved';
     });
     return this.#runView(this.#run(runId));
   }
@@ -1041,6 +1058,9 @@ export class BrickkenLiveWorkspace {
   async refreshFinality({ runId }) {
     this.#requireRole('owner');
     const run = this.#run(runId);
+    // A finality result is evidence the completeness rule rests on; a process
+    // running other code than the run was approved for does not produce one.
+    this.#requireCodeIdentity(run, 'finality');
     const lease = this.#acquireRunLock('finality', runId);
     try {
       const executor = this.#executor(run, lease);
@@ -1066,22 +1086,54 @@ export class BrickkenLiveWorkspace {
     }
   }
 
-  // Binds a recording to one completed run whose evidence is complete right now:
-  // the run, its approval and plan hashes, the code identity, every write's hash
-  // and block, every control block and the finality result the recording shows.
-  recordingBinding(runId) {
+  // Binds a recording to one completed run whose evidence is complete right now
+  // and whose evidence package has been exported: the run, its approval and
+  // plan hashes, the code identity, every write's hash and block, every control
+  // block, the finality result the recording shows, and the SHA-256 of the
+  // package's SHA256SUMS.json. The package must name this run, this approval,
+  // this code identity, a complete export and the journal's transactions, so
+  // the video and the package identify each other byte for byte (A1-F11).
+  recordingBinding(runId, { packageDirectory = null } = {}) {
     this.#requireRole('owner');
     const run = this.#run(runId);
+    // The completeness rule and this binding run in this process's code, so the
+    // binding is produced only by the code the run was approved for.
+    this.#requireCodeIdentity(run, 'recording', { evidence: false });
     const completeness = evaluateLiveRunCompleteness({
       run, journal: this.journal, evidenceDirectory: boundedPath(path.join(this.liveDirectory, 'evidence', run.runId))
     });
     if (!completeness.complete) {
       fail('RECORDING_RUN_INCOMPLETE', 'The selected run is not complete as evidence, so no recording is bound to it.', { missing: [...completeness.missing] });
     }
-    const packageDirectory = `verification/sepolia-live-${run.runId.slice(5, 17)}`;
-    let packageSha256 = null;
-    try { packageSha256 = createHash('sha256').update(fs.readFileSync(boundedPath(path.join(ROOT, packageDirectory, 'SHA256SUMS.json')))).digest('hex'); }
-    catch { packageSha256 = null; }
+    const directory = packageDirectory ?? `${this.evidencePackageRoot}/sepolia-live-${run.runId.slice(5, 17)}`;
+    if (typeof directory !== 'string' || !/^[A-Za-z0-9._\/-]{1,200}$/.test(directory)) fail('INVALID_INPUT', 'The evidence package directory is invalid.');
+    const packagePath = boundedPath(path.join(ROOT, ...directory.split('/')));
+    const sumsFile = path.join(packagePath, 'SHA256SUMS.json');
+    if (!fs.existsSync(sumsFile)) {
+      fail('RECORDING_PACKAGE_REQUIRED', 'The complete evidence package of this run has not been exported yet, so no recording is bound to it. Export the package first.', { packageDirectory: directory });
+    }
+    const transactions = LIVE_WRITE_STEPS.filter(step => run.steps[step].planned).map(step => {
+      const record = this.journal.get(run.steps[step].operationId);
+      return {
+        step, operationId: record.operationId, transactionHash: record.signed.ethereumTransactionHash,
+        blockNumber: record.confirmation.blockNumber, blockHash: record.confirmation.blockHash
+      };
+    });
+    const sumsBytes = fs.readFileSync(sumsFile);
+    let table;
+    try {
+      const sums = JSON.parse(sumsBytes.toString('utf8'));
+      const tableBytes = fs.readFileSync(path.join(packagePath, 'transactions.json'));
+      if (sums['transactions.json'] !== createHash('sha256').update(tableBytes).digest('hex')) throw new Error('SUMS');
+      table = JSON.parse(tableBytes.toString('utf8'));
+    } catch {
+      fail('RECORDING_PACKAGE_MISMATCH', 'The evidence package could not be read, or its transaction table does not match its SHA256SUMS.json.', { packageDirectory: directory });
+    }
+    const named = item => table.transactions.find(row => row.operationId === item.operationId)?.transactionHash === item.transactionHash;
+    if (!plain(table) || table.runId !== run.runId || table.approvalSha256 !== run.approvalSha256 || table.codeIdentitySha256 !== run.codeIdentitySha256 ||
+        table.complete !== true || !Array.isArray(table.transactions) || !transactions.every(named)) {
+      fail('RECORDING_PACKAGE_MISMATCH', 'The evidence package names another run, another approval, another code identity, an incomplete export or other transactions than the journal.', { packageDirectory: directory });
+    }
     return {
       runId: run.runId,
       approvalSha256: run.approvalSha256,
@@ -1089,15 +1141,9 @@ export class BrickkenLiveWorkspace {
       codeIdentitySha256: run.codeIdentitySha256 ?? null,
       ownerApprovedAt: run.ownerApproval.approvedAt,
       finality: { checkedAt: run.finality.checkedAt, allFinalized: run.finality.allFinalized },
-      transactions: LIVE_WRITE_STEPS.filter(step => run.steps[step].planned).map(step => {
-        const record = this.journal.get(run.steps[step].operationId);
-        return {
-          step, operationId: record.operationId, transactionHash: record.signed.ethereumTransactionHash,
-          blockNumber: record.confirmation.blockNumber, blockHash: record.confirmation.blockHash
-        };
-      }),
+      transactions,
       controls: LIVE_CONTROL_IDS.map(id => ({ id, blockNumber: run.controls[id].blockNumber, blockHash: run.controls[id].blockHash })),
-      evidencePackage: { directory: packageDirectory, sha256sumsSha256: packageSha256 }
+      evidencePackage: { directory, sha256sumsSha256: createHash('sha256').update(sumsBytes).digest('hex') }
     };
   }
 
@@ -1174,6 +1220,8 @@ export class BrickkenLiveWorkspace {
     // After expiry an already broadcast execute is still tracked by reads; nothing new is signed or sent.
     const trackingOnly = expired && existing !== null && LIVE_TRACKING_STATES.includes(existing.state);
     if (expired && !trackingOnly) fail('APPROVAL_EXPIRED', 'The run approval expired.');
+    // The agent's own process must run the approved code; the owner's process cannot vouch for it.
+    this.#requireCodeIdentity(run, 'agent-execute');
     if (!trackingOnly) await this.#requireSigner(run);
     const lease = this.#acquireRunLock('agent-execute', run.runId);
     try {
@@ -1217,7 +1265,7 @@ export class BrickkenLiveWorkspace {
     const started = this.#touchedOperationIds(this.#run(runId)).length > 0;
     const preflight = await readLivePreflight({ proposal: this.proposal, rpcs: this.rpcs, now: this.nowMs, sleep: this.sleep });
     this.#evidence(runId, started ? `preflight-resume-${this.nowMs()}` : 'preflight-start', preflight);
-    if (!started) this.#evidence(runId, 'code-identity-start', codeIdentity(isoAt(this.nowMs())));
+    if (!started) this.#evidence(runId, 'code-identity-start', identityNow(isoAt(this.nowMs())).evidence);
     // On a resume the run's own earlier writes explain these readings.
     const expectedAfterStart = new Set([
       'ALLOWANCE_NOT_ZERO', 'MANDATE_NOT_REVOKED', 'OWNER_PENDING_TRANSACTION', 'SIMULATION_REVERTED',
@@ -1272,41 +1320,154 @@ export class BrickkenLiveWorkspace {
     // Cleanup may revoke a mandate that is already non-executable, so its revoke
     // verifier records the prior executability instead of requiring it.
     const executor = this.#executor(run, lease, { cleanup: true });
-    // Resolve every transaction that may already be on chain before deciding anything.
+    // Resolve every transaction that may already be on chain before deciding
+    // anything. A grant or approve that is confirmed on chain but whose semantic
+    // postcheck fails stays confirmed: cleanup does not need that demonstration
+    // to succeed, it attributes the chain effect separately below (N1).
+    const postcheckFailed = {};
     for (const step of LIVE_WRITE_STEPS) {
       const record = this.journal.find(run.steps[step].operationId);
-      if (record && ['broadcast', 'uncertain', 'confirmed'].includes(record.state)) await this.#advanceUntilDone(executor, runId, step);
+      if (!record || !['broadcast', 'uncertain', 'confirmed'].includes(record.state)) continue;
+      try { await this.#advanceUntilDone(executor, runId, step); }
+      catch (error) {
+        if (error?.code !== 'SEMANTIC_CHECK_FAILED' || !['grant', 'approve'].includes(step)) throw error;
+        postcheckFailed[step] = safeDetails(error.details);
+        this.#evidence(runId, `cleanup-postcheck-failed-${step}`, { step, code: error.code, details: postcheckFailed[step], at: isoAt(this.nowMs()) });
+      }
     }
     const unsent = LIVE_WRITE_STEPS.filter(step => this.journal.find(run.steps[step].operationId)?.state === 'signed');
     if (unsent.length) {
       fail('UNSENT_SIGNATURE_BLOCKS_CLEANUP', 'A signed transaction was never broadcast, and its nonce blocks further owner writes. A new decision is needed.', { steps: unsent });
     }
     const verified = step => this.journal.find(run.steps[step].operationId)?.state === 'semantically_verified';
+    const attribution = {};
+    for (const step of ['approve', 'grant']) {
+      const record = this.journal.find(run.steps[step].operationId);
+      if (record?.state === 'confirmed') attribution[step] = await this.#attributeWrite(runId, step, record);
+    }
+    const proven = step => verified(step) || attribution[step]?.attributed === true;
+    const grantRecord = this.journal.find(run.steps.grant.operationId);
+    const plannedMandate = grantRecord?.signed ? grantMandateFromCalldata(grantRecord.transaction.data) : null;
     let revokedByCleanup = false;
     let allowanceResetByCleanup = false;
+    const problems = [];
     let reads = await this.#mandateAndAllowance();
-    if (verified('grant') && reads.mandate && !reads.mandate.revoked && !verified('revoke')) {
-      await this.#advanceUntilDone(executor, runId, 'revoke');
-      revokedByCleanup = true;
-      reads = await this.#mandateAndAllowance();
+    if (reads.mandate && !reads.mandate.revoked) {
+      // Only the mandate this run granted is revoked: its identity fields must
+      // equal the run's grant calldata and the grant must be verified or attributed.
+      // The two failures get their own codes: another mandate on chain, or this
+      // run's mandate whose grant could not be attributed from both sources.
+      const sameIdentity = plannedMandate !== null && sameMandateIdentity(reads.mandate, plannedMandate);
+      if (sameIdentity && proven('grant')) {
+        if (!verified('revoke')) {
+          await this.#advanceUntilDone(executor, runId, 'revoke');
+          revokedByCleanup = true;
+          reads = await this.#mandateAndAllowance();
+        }
+      } else if (!sameIdentity) {
+        problems.push({
+          code: 'CLEANUP_FOREIGN_MANDATE',
+          message: 'An active mandate on chain is not the one this run granted, so cleanup does not revoke it. The evidence is kept; the mandate needs a separate decision.',
+          details: { mandate: reads.mandate, attributed: attribution.grant?.attributed ?? null }
+        });
+      } else {
+        problems.push({
+          code: 'CLEANUP_GRANT_UNATTRIBUTED',
+          message: 'The active mandate on chain carries this run\'s grant identity, but the grant is neither verified nor attributed from both read sources, so cleanup does not revoke it. The evidence is kept; check the read sources and run cleanup again.',
+          details: { mandate: reads.mandate, attributed: attribution.grant?.attributed ?? null, reason: attribution.grant?.reason ?? null }
+        });
+      }
     }
-    if (verified('approve') && reads.allowance !== '0' && !verified('approveReset')) {
-      await this.#advanceUntilDone(executor, runId, 'approveReset');
-      allowanceResetByCleanup = true;
-      reads = await this.#mandateAndAllowance();
+    if (reads.allowance !== '0') {
+      if (proven('approve')) {
+        if (!verified('approveReset')) {
+          await this.#advanceUntilDone(executor, runId, 'approveReset');
+          allowanceResetByCleanup = true;
+          reads = await this.#mandateAndAllowance();
+        }
+      } else {
+        problems.push({
+          code: 'CLEANUP_UNATTRIBUTED_ALLOWANCE',
+          message: 'A non-zero allowance on chain is not attributed to this run\'s approve, so cleanup does not reset it. The evidence is kept; the allowance needs a separate decision.',
+          details: { attributed: attribution.approve?.attributed ?? null }
+        });
+      }
     }
     const cleanup = {
       completedAt: isoAt(this.nowMs()), revokedByCleanup, allowanceResetByCleanup,
-      mandateRevoked: reads.mandate ? reads.mandate.revoked : null, allowance: reads.allowance, block: reads.block
+      mandateRevoked: reads.mandate ? reads.mandate.revoked : null, allowance: reads.allowance, block: reads.block,
+      attribution: Object.fromEntries(Object.entries(attribution).map(([step, item]) => [step, { attributed: item.attributed, reason: item.reason }])),
+      postcheckFailed: Object.keys(postcheckFailed),
+      problems: problems.map(item => item.code)
     };
     this.#evidence(runId, 'cleanup', cleanup);
     this.#update(runId, item => { item.cleanup = cleanup; item.status = 'stopped'; item.phase = null; });
+    if (problems.length) fail(problems[0].code, problems[0].message, problems[0].details);
+  }
+
+  // Cleanup acts only on chain effects it can attribute to this run. A confirmed
+  // grant or approve whose semantic postcheck failed is attributed by its receipt
+  // on both sources (hash, sender, target, status, block), its calldata rebuilt
+  // from the reviewed plan, the one event the write must emit on both sources,
+  // and the block-bound state after it read from both sources. Anything less
+  // leaves the effect unattributed, and cleanup stops rather than revoke or
+  // reset what it cannot prove is its own. The result is written as evidence.
+  async #attributeWrite(runId, step, record) {
+    const proposal = this.proposal;
+    const { primary, secondary } = this.rpcs;
+    const hash = record.signed.ethereumTransactionHash;
+    const result = { step, operationId: record.operationId, transactionHash: hash, blockHash: record.confirmation.blockHash, attributed: false, reason: null, checkedAt: isoAt(this.nowMs()) };
+    const finish = reason => {
+      result.reason = reason;
+      result.attributed = reason === null;
+      this.#evidence(runId, `cleanup-attribution-${step}`, result);
+      return result;
+    };
+    const [receiptA, receiptB] = await Promise.all([primary.getTransactionReceipt(hash), secondary.getTransactionReceipt(hash)]);
+    const identity = receipt => Boolean(receipt) && receipt.transactionHash === hash && receipt.status === 1 &&
+      receipt.from === record.transaction.from && receipt.to === record.transaction.to && receipt.blockHash === record.confirmation.blockHash;
+    if (!identity(receiptA) || !identity(receiptB)) return finish('RECEIPT_IDENTITY');
+    const expectedData = step === 'grant'
+      ? expectedCalldata(proposal, 'grant', { validFrom: grantValidFrom(record.transaction.data) })
+      : expectedCalldata(proposal, 'approve');
+    if (record.transaction.data !== expectedData) return finish('CALLDATA');
+    const topic = step === 'grant' ? EVENT_TOPICS.MandateGranted : EVENT_TOPICS.Approval;
+    const contract = step === 'grant' ? proposal.registry : proposal.token.address;
+    const expectedTopics = step === 'grant' ? [proposal.agent, proposal.principal] : [proposal.principal, proposal.executor];
+    const topicAddress = value => '0x' + String(value).slice(26);
+    for (const receipt of [receiptA, receiptB]) {
+      const events = receipt.logs.filter(log => log.address === contract && log.topics[0] === topic);
+      if (events.length !== 1 || events[0].topics.length !== 3 ||
+          topicAddress(events[0].topics[1]) !== expectedTopics[0] || topicAddress(events[0].topics[2]) !== expectedTopics[1]) return finish('EVENT');
+    }
+    const ref = { blockHash: record.confirmation.blockHash };
+    const calls = readCalls(proposal);
+    if (step === 'grant') {
+      const [a, b] = await Promise.all([primary.call(calls.getMandate(), ref), secondary.call(calls.getMandate(), ref)]);
+      if (!a.ok || !b.ok) return finish('READ_REVERTED');
+      const mandateA = decodeMandateReturn(a.returnData);
+      const mandateB = decodeMandateReturn(b.returnData);
+      if (!mandateA || !mandateB || canonicalJson(mandateA) !== canonicalJson(mandateB)) return finish('SOURCE_STATE_DISAGREEMENT');
+      if (mandateA.revoked !== false || mandateA.cumulativeUsed !== '0' || !sameMandateIdentity(mandateA, grantMandateFromCalldata(record.transaction.data))) return finish('STATE');
+      result.mandate = mandateA;
+    } else {
+      const [a, b] = await Promise.all([primary.call(calls.allowance(), ref), secondary.call(calls.allowance(), ref)]);
+      if (!a.ok || !b.ok) return finish('READ_REVERTED');
+      const allowanceA = decodeUintReturn(a.returnData);
+      if (allowanceA !== decodeUintReturn(b.returnData)) return finish('SOURCE_STATE_DISAGREEMENT');
+      if (allowanceA !== BigInt('0x' + record.transaction.data.slice(74, 138)).toString()) return finish('STATE');
+      result.allowance = allowanceA;
+    }
+    return finish(null);
   }
 
   // ---- helpers ---------------------------------------------------------------
 
   async #start(run, phase, status, work, { trackingOnly = false } = {}) {
     if (this.#jobs.has(run.runId)) fail('LIVE_JOB_RUNNING', 'A live phase is already running for this run.');
+    // Every phase, tracking-only included, runs only on the approved code: a
+    // changed process would otherwise mark new semantic results and evidence.
+    this.#requireCodeIdentity(run, phase);
     if (!trackingOnly) {
       if (this.nowMs() >= Date.parse(run.notAfter)) fail('APPROVAL_EXPIRED', 'The run approval expired.');
       await this.#requireSigner(run);
@@ -1335,8 +1496,36 @@ export class BrickkenLiveWorkspace {
     try { status = await this.signer.status(); }
     catch (error) { throw workspaceFailure(error); }
     if (status?.approvalSha256 !== run.approvalSha256) fail('SIGNER_APPROVAL_MISMATCH', 'The running signer was started with a different run approval.');
+    if (status.codeIdentitySha256 !== run.codeIdentitySha256) {
+      fail('SIGNER_CODE_IDENTITY_MISMATCH', 'The running signer reports another source code identity than this run was approved for.',
+        { codeIdentitySha256: run.codeIdentitySha256 ?? null, processCodeIdentitySha256: status.codeIdentitySha256 ?? null });
+    }
     if (status.active !== true) fail('SIGNER_APPROVAL_NOT_ACTIVE', 'The running signer reports that the run approval is not active.');
     if (status.role !== this.role) fail('SIGNER_ROLE_MISMATCH', 'The signer token does not belong to this role.');
+  }
+
+  // The run's approved code identity must equal both the identity of this
+  // process, read when it started, and the identity on disk right now. Anything
+  // else stops with CODE_IDENTITY_MISMATCH before a preparation, a signature or
+  // a send; recorded transactions and existing evidence stay as they are.
+  #requireCodeIdentity(run, phase, { evidence = true } = {}) {
+    const expected = run.codeIdentitySha256 ?? null;
+    let disk;
+    try { disk = computeCodeIdentity().codeIdentitySha256; }
+    catch (error) {
+      fail('CODE_IDENTITY_MISMATCH', 'The source tree could not be identified, so nothing is prepared, signed or sent.', { phase, codeIdentitySha256: expected, reason: error?.code ?? 'CODE_IDENTITY_UNREADABLE' });
+    }
+    const observation = {
+      phase, role: this.role, checkedAt: isoAt(this.nowMs()), codeIdentitySha256: expected,
+      processCodeIdentitySha256: PROCESS_CODE_IDENTITY_SHA256, diskCodeIdentitySha256: disk,
+      match: expected !== null && expected === PROCESS_CODE_IDENTITY_SHA256 && expected === disk
+    };
+    if (evidence) this.#evidence(run.runId, `code-identity-${phase}-${this.nowMs()}`, observation);
+    if (!observation.match) {
+      fail('CODE_IDENTITY_MISMATCH', 'The source code identity differs from the one this run was approved for. Nothing is prepared, signed or sent; restore the approved code, or prepare a fresh plan from the current code.',
+        { phase, codeIdentitySha256: expected, processCodeIdentitySha256: PROCESS_CODE_IDENTITY_SHA256, diskCodeIdentitySha256: disk });
+    }
+    return observation;
   }
 
   // A recheck withdraws the verification of a step whose block changed. Such a
@@ -1363,7 +1552,8 @@ export class BrickkenLiveWorkspace {
       verifySignedTransaction: this.verifySignedTransaction,
       onEvidence: (name, value) => this.#evidence(run.runId, name, value),
       notAfter: run.notAfter, trackingOnly, cleanup,
-      assertOwnership: () => this.#requireLease(lease)
+      assertOwnership: () => this.#requireLease(lease),
+      assertCodeIdentity: () => this.#requireCodeIdentity(run, 'write', { evidence: false })
     });
   }
 
@@ -1382,6 +1572,11 @@ export class BrickkenLiveWorkspace {
       if (outcome.done) return outcome;
       if (this.nowMs() - started > limit) {
         const details = { step, transactionHash: outcome.transactionHash, journalState: outcome.state, attempts: outcome.attempts, backoffUntil: outcome.backoffUntil };
+        if (outcome.waitingFor) {
+          fail('DEPENDENCY_NOT_PROGRESSED',
+            `The ${step} write waited for an earlier write of this run to read at the required depth from both sources, and it did not within the phase's time. Nothing was signed; resume once both sources agree again.`,
+            { ...details, ...outcome.waitingFor });
+        }
         if (executor.trackingOnly) {
           fail('RECOVERY_AUTHORIZATION_REQUIRED',
             `The approval expired while the ${step} transaction is unresolved. Its recorded bytes are tracked by reads only; sending them again needs a recovery authorization for exactly this hash.`,
@@ -1405,19 +1600,28 @@ export class BrickkenLiveWorkspace {
     if (!control.passed) fail('CONTROL_FAILED', `The read-only control ${controlId} did not meet its expectations.`, { controlId });
   }
 
+  // The cleanup decision reads come from both sources at one block hash.
   async #mandateAndAllowance() {
-    const { primary } = this.rpcs;
+    const { primary, secondary } = this.rpcs;
+    const sleep = this.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
     const block = await primary.getBlock('latest');
+    let secondaryBlock = null;
+    for (let attempt = 0; attempt < 12 && !secondaryBlock; attempt++) {
+      secondaryBlock = await secondary.getBlock({ blockHash: block.hash });
+      if (!secondaryBlock) await sleep(this.pollMs ?? 5_000);
+    }
+    if (!secondaryBlock) fail('SOURCE_LAGGING', 'The second read source did not return the block the cleanup reads use.', { blockHash: block.hash });
     const ref = { blockHash: block.hash };
     const calls = readCalls(this.proposal);
-    const mandate = await primary.call(calls.getMandate(), ref);
-    const allowance = await primary.call(calls.allowance(), ref);
-    if (!mandate.ok || !allowance.ok) fail('READ_REVERTED', 'A cleanup read reverted.');
-    return {
-      block: { number: block.number, hash: block.hash },
-      mandate: decodeMandateReturn(mandate.returnData),
-      allowance: decodeUintReturn(allowance.returnData)
+    const read = async rpc => {
+      const mandate = await rpc.call(calls.getMandate(), ref);
+      const allowance = await rpc.call(calls.allowance(), ref);
+      if (!mandate.ok || !allowance.ok) fail('READ_REVERTED', 'A cleanup read reverted.');
+      return { mandate: decodeMandateReturn(mandate.returnData), allowance: decodeUintReturn(allowance.returnData) };
     };
+    const [a, b] = await Promise.all([read(primary), read(secondary)]);
+    if (canonicalJson(a) !== canonicalJson(b)) fail('SOURCE_STATE_DISAGREEMENT', 'The two read sources disagree on the mandate or the allowance at the same block.', { blockHash: block.hash });
+    return { block: { number: block.number, hash: block.hash }, mandate: a.mandate, allowance: a.allowance };
   }
 
   async #recordReplay(runId, record) {
@@ -1496,10 +1700,13 @@ export class BrickkenLiveWorkspace {
     const inWindow = executeStatuses.includes(run.status) || (run.status === 'stopped' && run.phase === 'agent-execute');
     const record = this.journal.find(run.steps.execute.operationId);
     if (!inWindow || record?.state !== 'semantically_verified') return run;
+    this.#requireCodeIdentity(run, 'reconcile', { evidence: false });
     const lease = this.#acquireRunLock('reconcile', runId);
     try {
-      await this.#executor(run, lease).recheck([record.operationId]);
-      if (this.journal.find(record.operationId)?.state !== 'semantically_verified') return this.#run(runId);
+      // The phase moves on only while the execute block still reads at the
+      // required depth from both sources; the same rule as before any new write.
+      const progression = await this.#executor(run, lease).progression(record.operationId);
+      if (!progression.eligible) return this.#run(runId);
       this.#update(runId, item => {
         if (executeStatuses.includes(item.status) || (item.status === 'stopped' && item.phase === 'agent-execute')) {
           item.status = 'awaiting-owner-revocation'; item.phase = null; item.stop = null;
@@ -1579,8 +1786,22 @@ export class BrickkenLiveWorkspace {
     const run = this.#run(runId);
     const control = run.controls[controlId];
     if (!control?.observed || control.passed !== true) return;
-    const [result] = await checkControlCanonicity({ rpcs: this.rpcs, controls: [{ controlId, blockNumber: control.blockNumber, blockHash: control.blockHash }] });
-    if (result.canonical !== false) return;
+    const query = { controlId, blockNumber: control.blockNumber, blockHash: control.blockHash };
+    let [result] = await checkControlCanonicity({ rpcs: this.rpcs, controls: [query] });
+    // A source that has no block at the control height yet gets a bounded wait
+    // inside this call before the call stops as unresolved.
+    const sleep = this.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
+    for (let attempt = 0; attempt < 6 && result.canonical === null; attempt++) {
+      await sleep(this.pollMs ?? 5_000);
+      [result] = await checkControlCanonicity({ rpcs: this.rpcs, controls: [query] });
+    }
+    if (result.canonical === true) return;
+    if (result.canonical === null) {
+      // No source disagrees, but both did not confirm: nothing is decided from
+      // that. The control keeps its result and the agent calls execute again.
+      this.#update(runId, item => { item.phase = 'agent-execute'; });
+      fail('CONTROL_UNRESOLVED', `A read source did not return the ${controlId} block, so its canonicity is unresolved right now. Nothing was signed; call execute_approved again once both sources answer.`, { controlIds: [controlId] });
+    }
     const at = isoAt(this.nowMs());
     this.#update(runId, item => {
       item.controls[controlId] = { ...item.controls[controlId], passed: false, canonical: false, invalidatedAt: at, invalidationReason: 'BLOCK_NOT_CANONICAL' };
@@ -1663,10 +1884,10 @@ export class BrickkenLiveWorkspace {
     fs.renameSync(temporary, target);
   }
 
-  // The run lock follows the shared live lock protocol (src/live-lock.mjs): a
-  // live holder refuses at once, a holder whose process is gone is taken over by
-  // an ownership-checked rename, and the returned lease proves ownership before
-  // every later action and before its own release.
+  // The run lock follows the shared live lock protocol (src/live-lock.mjs): an
+  // exclusive file handle bound to the process, so a live holder refuses at
+  // once, a holder whose process is gone is taken over by the next exclusive
+  // open, and the returned lease proves ownership before every later action.
   #acquireRunLock(purpose, runId) {
     try {
       return acquireLiveLock(this.runLock, {

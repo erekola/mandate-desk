@@ -234,6 +234,10 @@ function renderLiveSigner() {
     const hashDd = make('dd');
     hashDd.append(make('code', '', signer.approvalSha256 ?? copy.liveNone));
     dl.append(hashDd);
+    dl.append(make('dt', '', copy.liveSignerCodeIdentityLabel));
+    const identityDd = make('dd');
+    identityDd.append(make('code', '', signer.codeIdentitySha256 ?? copy.liveNone));
+    dl.append(identityDd);
     addTerm(dl, copy.liveSignerActiveLabel, signer.active ? copy.liveYes : copy.liveNo);
     addTerm(dl, copy.liveSignerSignedStepsLabel, signer.signedSteps?.length ? signer.signedSteps.join(', ') : copy.liveNone);
   } else {
@@ -473,7 +477,8 @@ try {
   }));
   $('live-approve').addEventListener('click', () => liveAction(async () => {
     const run = currentLiveRun();
-    const response = await request('/api/live/approve', { runId: run.runId, approvalSha256: run.approvalSha256 });
+    // The owner approves two hashes: the exact plan and the exact source identity shown for this run.
+    const response = await request('/api/live/approve', { runId: run.runId, approvalSha256: run.approvalSha256, codeIdentitySha256: run.codeIdentitySha256 });
     liveState = response.state; renderLive(); notify(copy.liveSaved);
   }));
   $('live-start-setup').addEventListener('click', () => liveAction(async () => {

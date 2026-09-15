@@ -3,13 +3,19 @@ import path from 'node:path';
 import {randomUUID,createHash} from 'node:crypto';
 import {boundedPath} from './store.mjs';
 // A live recording is bound by the server to one completed run whose evidence
-// is complete right now (BrickkenLiveWorkspace.recordingBinding). The client
-// never supplies the binding; a live save without one is refused. The metadata
-// therefore identifies the run the video shows; it does not vouch for pixels.
+// is complete right now and whose evidence package has been exported
+// (BrickkenLiveWorkspace.recordingBinding): the binding carries the SHA-256 of
+// that package's SHA256SUMS.json, so the video and the package name each other
+// byte for byte. The client never supplies the binding; a live save without
+// one, or without the package hash, is refused. The metadata identifies the
+// run the video shows; it does not vouch for pixels.
 function validBinding(binding){
   return binding&&typeof binding==='object'&&!Array.isArray(binding)&&/^live_[a-f0-9]{32}$/.test(binding.runId??'')&&
     /^[a-f0-9]{64}$/.test(binding.approvalSha256??'')&&/^[a-f0-9]{64}$/.test(binding.proposalHash??'')&&
-    binding.finality&&binding.finality.allFinalized===true&&Array.isArray(binding.transactions)&&binding.transactions.length>0;
+    /^[a-f0-9]{64}$/.test(binding.codeIdentitySha256??'')&&
+    binding.finality&&binding.finality.allFinalized===true&&Array.isArray(binding.transactions)&&binding.transactions.length>0&&
+    binding.evidencePackage&&typeof binding.evidencePackage==='object'&&typeof binding.evidencePackage.directory==='string'&&
+    /^[a-f0-9]{64}$/.test(binding.evidencePackage.sha256sumsSha256??'');
 }
 export async function saveDemoRecording(request,directory,mode='simulation',binding=null){
   if(mode!=='simulation'&&mode!=='live-run-evidence')throw Error('RECORDING_MODE');
