@@ -1,0 +1,92 @@
+{
+  "name": "mandate-desk-live-run-a428e8c7-36ff-4008-a61e-ea2699e591fa.webm",
+  "bytes": 235573,
+  "sha256": "167ed5c35d07f9e2e342f586b7040bfddc79ecf52e4ae4de8af4773cf078cfd5",
+  "format": "video/webm",
+  "surface": "Mandate Desk demonstration canvas",
+  "mode": "live-run-evidence",
+  "savedAt": "2026-09-15T12:26:23.081Z",
+  "binding": {
+    "runId": "live_c990e8a178b04a35835d8fe92097c20f",
+    "approvalSha256": "9a2e5ee17d8bed85d30046529acc20f590be2d1bb06b6aa13e71f66228544fcb",
+    "proposalHash": "415254ccd0c7d2764e5175743cc4dec6f718bf51bf0d556fda52bee8c03f6533",
+    "codeIdentitySha256": "086c78401b54a9f9d9f6a47018b4ed6e0e04038e5a5c708d685b06443d31dc79",
+    "ownerApprovedAt": "2026-09-15T08:03:15.862Z",
+    "finality": {
+      "checkedAt": "2026-09-15T12:12:08.624Z",
+      "allFinalized": true,
+      "packageCheckedAt": "2026-09-15T12:12:08.624Z"
+    },
+    "transactions": [
+      {
+        "step": "setAction",
+        "operationId": "live_c990e8a178b04a35835d8fe92097c20f_setAction",
+        "transactionHash": "0x4030808d2aa11840bca24d41ce09e2b8564b6c3d771a9619496ee5b843ae9a24",
+        "blockNumber": "11708599",
+        "blockHash": "0x80603e00854080807a78cdfbfcc2a8afa0180bd0603dffed377b63388d826c79"
+      },
+      {
+        "step": "approve",
+        "operationId": "live_c990e8a178b04a35835d8fe92097c20f_approve",
+        "transactionHash": "0x4f41eab8efaadeca4b0d52dd3140f5de750615a4a77f003588174127cf2cfc8e",
+        "blockNumber": "11708602",
+        "blockHash": "0x3a52dfda7d8a2b2809a792fbec032f205477dfbc2cc5737516fb844101ce08e2"
+      },
+      {
+        "step": "grant",
+        "operationId": "live_c990e8a178b04a35835d8fe92097c20f_grant",
+        "transactionHash": "0xde8b76804660bdd805fa3e640c73b48a5ff95162ff9cecb4af089c6afe8d553b",
+        "blockNumber": "11708605",
+        "blockHash": "0x5f16ae19574052e845c1a080f895d58da3e74d8e514c5c8861f90d3ea62ce336"
+      },
+      {
+        "step": "execute",
+        "operationId": "live_c990e8a178b04a35835d8fe92097c20f_execute",
+        "transactionHash": "0x546917db7f393947d4a0b9d7ddef08b7f304fbfb2eb160cb0ec1cd0178228139",
+        "blockNumber": "11708611",
+        "blockHash": "0x3b36b851080a33c28898c91da11bc9f587ebb85a00c4d3573a314f8cb467eff6"
+      },
+      {
+        "step": "revoke",
+        "operationId": "live_c990e8a178b04a35835d8fe92097c20f_revoke",
+        "transactionHash": "0x37fc339467256be4bfb4b22ba60ecf681c98990cb871c1d810e281d8968414b5",
+        "blockNumber": "11708618",
+        "blockHash": "0xf77963514b6a3fd578ace695ace9ad7b2437667be60ae949b4b9b040b9952481"
+      },
+      {
+        "step": "approveReset",
+        "operationId": "live_c990e8a178b04a35835d8fe92097c20f_approveReset",
+        "transactionHash": "0x0de6edf857bc6f04c32f1da99df2aff227c5336212f47828eaa08da9ffe2e6be",
+        "blockNumber": "11708714",
+        "blockHash": "0xe935418d3457e838f719db44d2802be18eac9034fc82739422b98ad7d29f14eb"
+      }
+    ],
+    "controls": [
+      {
+        "id": "control-transaction-cap",
+        "blockNumber": "11708606",
+        "blockHash": "0x89c1d1c762ffb0e2e098db55004f2d48e061fd81db7a0e423354bb8608b367b7"
+      },
+      {
+        "id": "control-cumulative-cap",
+        "blockNumber": "11708614",
+        "blockHash": "0x7807c28e9be506755684504ddac99117b9d1ceb707e90f16305fb5aacd701a2a"
+      },
+      {
+        "id": "control-before-revoke",
+        "blockNumber": "11708614",
+        "blockHash": "0x7807c28e9be506755684504ddac99117b9d1ceb707e90f16305fb5aacd701a2a"
+      },
+      {
+        "id": "control-after-revoke",
+        "blockNumber": "11708621",
+        "blockHash": "0x5f0a817be87a83786480e2c09680565bbac197826b8ba1ac0864047c847bda4a"
+      }
+    ],
+    "evidencePackage": {
+      "directory": "verification/sepolia-live-c990e8a178b0",
+      "sha256sumsSha256": "a367dea097bc7f96f41defeea5816d708e0653104994b6e4979eef4b830b96e7"
+    }
+  },
+  "bindingSha256": "6a4fdf2a66fc83658fbdeb99e1f7ebcf03674a5cf7fc9a2264b4b8bf9461bb9b"
+}

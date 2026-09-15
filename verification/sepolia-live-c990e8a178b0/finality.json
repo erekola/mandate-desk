@@ -1,74 +1,74 @@
 {
-  "checkedAt": "2026-09-15T11:26:00.887Z",
+  "checkedAt": "2026-09-15T12:12:08.624Z",
   "primaryFinalized": {
-    "number": "11703676",
-    "hash": "0x9449e113dadb99f6825cdd6196aaf25c7914249c882cf0aca263545987b6f78d"
+    "number": "11709728",
+    "hash": "0x53d695049c9b6cc8a205335e2d657bd04f6838ac81fddbfb038430c9028b0881"
   },
   "secondaryFinalized": {
-    "number": "11709486",
-    "hash": "0x311a50ba1f38af10f44e02a90d2bec7a2e84b8f36d15341d4b82d4de3301ea56"
+    "number": "11709728",
+    "hash": "0x53d695049c9b6cc8a205335e2d657bd04f6838ac81fddbfb038430c9028b0881"
   },
   "entries": [
     {
       "operationId": "live_c990e8a178b04a35835d8fe92097c20f_setAction",
       "blockNumber": "11708599",
       "blockHash": "0x80603e00854080807a78cdfbfcc2a8afa0180bd0603dffed377b63388d826c79",
-      "finalized": false
+      "finalized": true
     },
     {
       "operationId": "live_c990e8a178b04a35835d8fe92097c20f_approve",
       "blockNumber": "11708602",
       "blockHash": "0x3a52dfda7d8a2b2809a792fbec032f205477dfbc2cc5737516fb844101ce08e2",
-      "finalized": false
+      "finalized": true
     },
     {
       "operationId": "live_c990e8a178b04a35835d8fe92097c20f_grant",
       "blockNumber": "11708605",
       "blockHash": "0x5f16ae19574052e845c1a080f895d58da3e74d8e514c5c8861f90d3ea62ce336",
-      "finalized": false
+      "finalized": true
     },
     {
       "operationId": "live_c990e8a178b04a35835d8fe92097c20f_execute",
       "blockNumber": "11708611",
       "blockHash": "0x3b36b851080a33c28898c91da11bc9f587ebb85a00c4d3573a314f8cb467eff6",
-      "finalized": false
+      "finalized": true
     },
     {
       "operationId": "live_c990e8a178b04a35835d8fe92097c20f_revoke",
       "blockNumber": "11708618",
       "blockHash": "0xf77963514b6a3fd578ace695ace9ad7b2437667be60ae949b4b9b040b9952481",
-      "finalized": false
+      "finalized": true
     },
     {
       "operationId": "live_c990e8a178b04a35835d8fe92097c20f_approveReset",
       "blockNumber": "11708714",
       "blockHash": "0xe935418d3457e838f719db44d2802be18eac9034fc82739422b98ad7d29f14eb",
-      "finalized": false
+      "finalized": true
     },
     {
       "controlId": "control-transaction-cap",
       "blockNumber": "11708606",
       "blockHash": "0x89c1d1c762ffb0e2e098db55004f2d48e061fd81db7a0e423354bb8608b367b7",
-      "finalized": false
+      "finalized": true
     },
     {
       "controlId": "control-cumulative-cap",
       "blockNumber": "11708614",
       "blockHash": "0x7807c28e9be506755684504ddac99117b9d1ceb707e90f16305fb5aacd701a2a",
-      "finalized": false
+      "finalized": true
     },
     {
       "controlId": "control-before-revoke",
       "blockNumber": "11708614",
       "blockHash": "0x7807c28e9be506755684504ddac99117b9d1ceb707e90f16305fb5aacd701a2a",
-      "finalized": false
+      "finalized": true
     },
     {
       "controlId": "control-after-revoke",
       "blockNumber": "11708621",
       "blockHash": "0x5f0a817be87a83786480e2c09680565bbac197826b8ba1ac0864047c847bda4a",
-      "finalized": false
+      "finalized": true
     }
   ],
-  "allFinalized": false
+  "allFinalized": true
 }

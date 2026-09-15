@@ -5,7 +5,7 @@
   "excludes": [
     "SHA256-MANIFEST.json"
   ],
-  "fileCount": 125,
+  "fileCount": 128,
   "files": [
     {
       "path": ".gitattributes",
@@ -19,13 +19,13 @@
     },
     {
       "path": "AI-DISCLOSURE.md",
-      "bytes": 2436,
-      "sha256": "f5f1a03cd455e7e0d243afe4bcc21791ea75e719ff5779623fbbfaa093591fce"
+      "bytes": 2597,
+      "sha256": "4dd6875cb2261b297c0b348424cdb2552dc31e2336ea9f954a4172d53c88082c"
     },
     {
       "path": "DEMO.md",
-      "bytes": 4323,
-      "sha256": "3265e0bd766c9209e3c449c8db37163439b7b81961ea8a1834534c34752b4a37"
+      "bytes": 4439,
+      "sha256": "87a5764ff4626cf4fb686f445575f9e89ada9b18e30c1bf56a868cb54574a3b3"
     },
     {
       "path": "LICENSE",
@@ -34,8 +34,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 10735,
-      "sha256": "3d774ec6dbb784bc60e3a05bfa330c351d63c3ce4dacea44660bafdf3da8876e"
+      "bytes": 10847,
+      "sha256": "7990e2b505fd69212fd5e1d2d1aaf983ece188f60fa0d8855c1e22cadb8bdaef"
     },
     {
       "path": "THIRD-PARTY-NOTICES.md",
@@ -44,8 +44,8 @@
     },
     {
       "path": "VERIFICATION.md",
-      "bytes": 21521,
-      "sha256": "0ff9c8e94260767fa809f59910d4c47d14b4b1e23238567720de94531cc9e4e1"
+      "bytes": 22591,
+      "sha256": "9515fcb0c58fa9de9611203dc78fe9f85a37229c8759798b976ebca697578e03"
     },
     {
       "path": "integration/demo-proposal.json",
@@ -69,13 +69,23 @@
     },
     {
       "path": "media/mandate-desk-card.png",
-      "bytes": 335494,
-      "sha256": "7074003574a13dbd63e10cde59a29834f45d859f198c8b5c32f145f15065416b"
+      "bytes": 335839,
+      "sha256": "7e9e712eef81ac837db3db97a2a945da1934aeed41885e97a3f738295ba7761b"
     },
     {
       "path": "media/mandate-desk-demo.mp4",
       "bytes": 1082175,
       "sha256": "f44d45a2b2c0913d13b097fd7f1d4bc1d5f327ab7e9bd1a04979ba7b49fb730e"
+    },
+    {
+      "path": "media/mandate-desk-live-run.webm",
+      "bytes": 235573,
+      "sha256": "167ed5c35d07f9e2e342f586b7040bfddc79ecf52e4ae4de8af4773cf078cfd5"
+    },
+    {
+      "path": "media/mandate-desk-live-run.webm.json",
+      "bytes": 3962,
+      "sha256": "afe0aa51400b2d43f86575829952d78d0a0ca68d6bf994c4f16dbff5845492ed"
     },
     {
       "path": "package.json",
@@ -479,8 +489,8 @@
     },
     {
       "path": "verification/sepolia-live-c990e8a178b0/SHA256SUMS.json",
-      "bytes": 3017,
-      "sha256": "1cc5883bff78dd85c2fb1af598dcd097ed38c398441fb34d879d18d6dafe113f"
+      "bytes": 3112,
+      "sha256": "a367dea097bc7f96f41defeea5816d708e0653104994b6e4979eef4b830b96e7"
     },
     {
       "path": "verification/sepolia-live-c990e8a178b0/code-identity-start.json",
@@ -514,8 +524,8 @@
     },
     {
       "path": "verification/sepolia-live-c990e8a178b0/finality.json",
-      "bytes": 2566,
-      "sha256": "2d14dbe65a5b94141bb389e7a33127cbcc7bd929e18abbf2dd2c1627e657deeb"
+      "bytes": 2555,
+      "sha256": "bd7a9cfa8acf25763e34b27abb8180644611ea485b32fab5f3378d53f500d90d"
     },
     {
       "path": "verification/sepolia-live-c990e8a178b0/preflight-plan.json",
@@ -528,14 +538,19 @@
       "sha256": "1b76784c0d7442e6b8e16087e9e2e3153ea1f0bde1af780ad9df5c03b3c8c348"
     },
     {
+      "path": "verification/sepolia-live-c990e8a178b0/replays/replay-1.json",
+      "bytes": 677,
+      "sha256": "6f63acc6f842882b8ad75c19876ed7b081a2498a823a592413eb796781056d3a"
+    },
+    {
       "path": "verification/sepolia-live-c990e8a178b0/run-approval.json",
       "bytes": 15326,
       "sha256": "a1c3f7762331c00d3cbf8bb867d0a7e972fbdc96a7e970ed8a5a82ec20137a93"
     },
     {
       "path": "verification/sepolia-live-c990e8a178b0/run.json",
-      "bytes": 6057,
-      "sha256": "d6d02c8da85bae56040422f0bf157bcd4c6ef4a882936b6d1430501d40b2cf13"
+      "bytes": 5743,
+      "sha256": "3b608c8327fa6a3f93733ff011bc8f8645382c447145c500db9a809695d08a5e"
     },
     {
       "path": "verification/sepolia-live-c990e8a178b0/steps/approve-postcheck.json",
@@ -629,8 +644,8 @@
     },
     {
       "path": "verification/sepolia-live-c990e8a178b0/transactions.json",
-      "bytes": 14366,
-      "sha256": "584c144178ad0deee255c9e8ff01a451ea1bf4e89dfb261faaa5e79d4108b6f9"
+      "bytes": 13819,
+      "sha256": "976027ac508d0817ec19aea0b5bd710fbc25b377d642a121cc4d7ac156ce856a"
     }
   ]
 }
