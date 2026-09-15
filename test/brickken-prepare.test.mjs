@@ -150,11 +150,16 @@ test('ambiguous containers, errors, partial objects and invalid batch identifier
   for (const txId of ['', 'a'.repeat(129), '../relative', 'line\nbreak', 1, null]) assert.throws(() => check({ ...response, txId }));
 });
 
-test('payment requirements stop both documented shapes without attempting payment', () => {
+test('an x402Requirements quote in any documented position is read as data and never stops the preparation; a quote that is not an object is an envelope fault', () => {
   const { response, check } = fixture();
-  for (const body of [{ ...response, x402Requirements: {} }, { data: response, x402Requirements: {} },
-    { data: { ...response, x402Requirements: {} } }]) {
-    assert.throws(() => check(body), error => error.code === 'PAYMENT_REVIEW_REQUIRED');
+  const quote = { scheme: 'exact', network: 'eip155:84532', asset: 'USDC', maxAmountRequired: '250000' };
+  for (const body of [{ ...response, x402Requirements: quote }, { data: response, x402Requirements: quote },
+    { data: { ...response, x402Requirements: quote } }]) {
+    assert.doesNotThrow(() => check(body));
+  }
+  // The documentation does not fix the quote's shape; every JSON form is data.
+  for (const other of ['pay', [{ scheme: 'exact' }], null, 1, true]) {
+    assert.doesNotThrow(() => check({ ...response, x402Requirements: other }), String(other));
   }
 });
 

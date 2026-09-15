@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "kind": "mandate-desk-live-control",
+  "controlId": "control-cumulative-cap",
+  "observedAt": "2026-09-15T08:06:43.415Z",
+  "block": {
+    "number": "11708614",
+    "hash": "0x7807c28e9be506755684504ddac99117b9d1ceb707e90f16305fb5aacd701a2a",
+    "timestamp": "1789459596"
+  },
+  "broadcast": false,
+  "transactionHash": null,
+  "calls": [
+    {
+      "label": "can-execute-remaining-cumulative",
+      "from": null,
+      "to": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+      "value": "0",
+      "data": "0xf80ba00f00000000000000000000000018ff8b19e9e9cc35c7f10b1c690bb84d56cc94420000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d40000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c723823b872dd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001388",
+      "expect": "true",
+      "result": {
+        "ok": true,
+        "returnData": "0x0000000000000000000000000000000000000000000000000000000000000001"
+      },
+      "decodedRevert": null,
+      "secondaryAgrees": true,
+      "passed": true
+    },
+    {
+      "label": "can-execute-over-cumulative",
+      "from": null,
+      "to": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+      "value": "0",
+      "data": "0xf80ba00f00000000000000000000000018ff8b19e9e9cc35c7f10b1c690bb84d56cc94420000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d40000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c723823b872dd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001770",
+      "expect": "false",
+      "result": {
+        "ok": true,
+        "returnData": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "decodedRevert": null,
+      "secondaryAgrees": true,
+      "passed": true
+    }
+  ],
+  "facts": {
+    "allowance": "5000",
+    "principalTokenBalance": "19990000",
+    "recipientTokenBalance": "13100",
+    "mandate": {
+      "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+      "validFrom": "1789459464",
+      "validUntil": "1789463064",
+      "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "revoked": false,
+      "complianceProvider": "0xa90d2503d5d9b80ecc27856ff76f892b8c02f278",
+      "identityRef": "0x6cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f7633",
+      "asset": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "maxTransactionValue": "10000",
+      "maxCumulativeValue": "15000",
+      "cumulativeUsed": "10000",
+      "metadata": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "actionEnabled": true,
+    "agentFrozen": false,
+    "executorAction": {
+      "supported": true,
+      "hasAmount": true,
+      "amountIndex": 2
+    }
+  },
+  "secondaryFactsAgree": true,
+  "conditions": [
+    {
+      "id": "mandate-exists",
+      "holds": true
+    },
+    {
+      "id": "within-validity-window",
+      "holds": true
+    },
+    {
+      "id": "agent-not-frozen",
+      "holds": true
+    },
+    {
+      "id": "action-enabled",
+      "holds": true
+    },
+    {
+      "id": "executor-action-configured",
+      "holds": true
+    },
+    {
+      "id": "not-revoked",
+      "holds": true
+    },
+    {
+      "id": "cumulative-used-equals-execute",
+      "holds": true
+    },
+    {
+      "id": "both-amounts-within-transaction-cap",
+      "holds": true
+    },
+    {
+      "id": "allowed-amount-fits-remaining-cap",
+      "holds": true
+    },
+    {
+      "id": "denied-amount-exceeds-remaining-cap",
+      "holds": true
+    }
+  ],
+  "allowedLegPassed": true,
+  "passed": true,
+  "interpretation": "Both AgentMandate.canExecute calls use the same block after the executed transfer. The smaller amount is allowed and the larger amount is denied while both fit the per-transfer cap. This proves the RAMS cumulative gate only; the executor token allowance would also limit a transfer."
+}

@@ -1,0 +1,244 @@
+{
+  "schemaVersion": 2,
+  "kind": "mandate-desk-code-identity",
+  "files": [
+    {
+      "path": "integration/live-proposal.json",
+      "bytes": 3293,
+      "sha256": "f189120a75f84b52583293d7220ee08f4a595b34c8868a9c459699db989e7250"
+    },
+    {
+      "path": "package.json",
+      "bytes": 426,
+      "sha256": "30c9b80aac3a415ff2a7a1354581642c1eb693373f93bac8fd38ee7360b1d98f"
+    },
+    {
+      "path": "public/app.mjs",
+      "bytes": 9645,
+      "sha256": "6a15d6ea8471164d0ccabbccb2c123a4b4f236c2ff8aedb0b45c98c1699d35f1"
+    },
+    {
+      "path": "public/copy.json",
+      "bytes": 4722,
+      "sha256": "85926259188cc3833cd1a7d6a44739fca201985eb2d152fa5e6f4793c4b2922c"
+    },
+    {
+      "path": "public/demo-copy.json",
+      "bytes": 3108,
+      "sha256": "622f3dbda775cb7fd02c1008d382a2bfb3d58047960eeb66c6ace31de90ceedc"
+    },
+    {
+      "path": "public/demo.html",
+      "bytes": 845,
+      "sha256": "a657d6b30a86f2284dfdc81743d7a45acf0d89fd6dad36152b2f6e2ce691da91"
+    },
+    {
+      "path": "public/demo.mjs",
+      "bytes": 6663,
+      "sha256": "b43cfe829758b69732bfa43abd9bd20fa836a34527119eddb7cd95c136d70be4"
+    },
+    {
+      "path": "public/index.html",
+      "bytes": 5277,
+      "sha256": "3c6d8df563210ebaf86065b871eb0e623b79e1687e9a029dc071b17ff0e798eb"
+    },
+    {
+      "path": "public/integration-copy.json",
+      "bytes": 7377,
+      "sha256": "aa883aefb26ba7d0a0d6e8a124229ac7bb6e7c6bb95be42fd1ddeaf81820f095"
+    },
+    {
+      "path": "public/integration.html",
+      "bytes": 4329,
+      "sha256": "d3f1edde35f76a3e26824273dc8e75258fdca950075c80ffa7794f255323629a"
+    },
+    {
+      "path": "public/integration.mjs",
+      "bytes": 24002,
+      "sha256": "181a3a25815412cf27786b89b799f07ce85ac615dfe31603aee803ad47f5bbe3"
+    },
+    {
+      "path": "public/live-demo-copy.json",
+      "bytes": 5187,
+      "sha256": "a4722796ad3caaf6b9f306db6df718ac8d28f88ccbae0f3a26a1e0c1ac4c38e2"
+    },
+    {
+      "path": "public/live-demo.html",
+      "bytes": 1024,
+      "sha256": "7ffceaad3294cd6c8b0484906ea9d7eceb7c33d3feea0c9498dde4baf9959d8a"
+    },
+    {
+      "path": "public/live-demo.mjs",
+      "bytes": 12529,
+      "sha256": "2946fa8de1ceb927849a932cf82c466fd7862ee776816891384b1b9b1ab0375a"
+    },
+    {
+      "path": "public/style.css",
+      "bytes": 12566,
+      "sha256": "7c068c34466f90b8be527db50ea8863584f6277c6c3dd6b23511ef1d52f6ccbe"
+    },
+    {
+      "path": "src/brickken-envelope.mjs",
+      "bytes": 15020,
+      "sha256": "9d9859c1702c3dbd17d1d1ba0d35dc6ead2ac176bc6c8758613f9785ceecc053"
+    },
+    {
+      "path": "src/brickken-executor.mjs",
+      "bytes": 8772,
+      "sha256": "2c3346e62e66a4d41d868aea95a4fcb79fee3d4811c3aab58dcde97439a4c141"
+    },
+    {
+      "path": "src/brickken-http.mjs",
+      "bytes": 12614,
+      "sha256": "c5f392377b1f97f494235a24522dbdd561c621b2d69e62909c8f93c4b8dc9f86"
+    },
+    {
+      "path": "src/brickken-intent.mjs",
+      "bytes": 16515,
+      "sha256": "c4b0a584ec27df276e351117c181a95e9394a5d8d6cc9c5344e8cbf018437614"
+    },
+    {
+      "path": "src/brickken-journal.mjs",
+      "bytes": 52955,
+      "sha256": "3a2aa44e202c508c2a77a9c608ecb04e9808f3e81698c52139f9947b1c27503e"
+    },
+    {
+      "path": "src/brickken-lifecycle.mjs",
+      "bytes": 15616,
+      "sha256": "e460c221bacba5c29c0d04f2217160fc1c91d2bd7e67aff1f31e996c6ea182dc"
+    },
+    {
+      "path": "src/brickken-live-adapter.mjs",
+      "bytes": 66556,
+      "sha256": "b8ad64de0639381cf56c095bc89a909fabf5e184ca86fd6e423459d9bb1f6211"
+    },
+    {
+      "path": "src/brickken-live-completeness.mjs",
+      "bytes": 5667,
+      "sha256": "1b03f1d28c3a3fa24e7524fedad9753e41992ca668291fb6f547112c94c681fe"
+    },
+    {
+      "path": "src/brickken-live-plan.mjs",
+      "bytes": 31170,
+      "sha256": "3dd270a109cc58627e762b393f8b61ed15206d8c3c7091b83c58443564a67591"
+    },
+    {
+      "path": "src/brickken-live-signer.mjs",
+      "bytes": 20942,
+      "sha256": "96192c4f26919da8aba47f8c710f51a9d88e69ef8cdf696baf9da13750562246"
+    },
+    {
+      "path": "src/brickken-mandate.mjs",
+      "bytes": 5548,
+      "sha256": "292eb1dd40c2b40a2ef3acf211e808d55ba7268975df19a4b6ac39e051448968"
+    },
+    {
+      "path": "src/brickken-postcheck.mjs",
+      "bytes": 26882,
+      "sha256": "7ef5096f9f857404ccf4d5fe34b65e544905e56c3f904a4f6a24960c7233d9cc"
+    },
+    {
+      "path": "src/brickken-prepare.mjs",
+      "bytes": 15769,
+      "sha256": "cb23199e4a0bcbf79d6dcafe675cf9e3b01297684d4521ac5b81c298952ab644"
+    },
+    {
+      "path": "src/brickken-read.mjs",
+      "bytes": 14533,
+      "sha256": "5bcb1adaa74ae5b408bbf5899b2365216e2f16883637c446cae8453281450934"
+    },
+    {
+      "path": "src/brickken-rpc.mjs",
+      "bytes": 23200,
+      "sha256": "7fe551f62d359d3682d2077d5bf9caf275d223168e29f9828c3a8d8a5ca9a648"
+    },
+    {
+      "path": "src/brickken-workspace.mjs",
+      "bytes": 119822,
+      "sha256": "30ca78ba13fb9bcadaac6c1e575afc4d054961b53a87252e2e651849f1a68e08"
+    },
+    {
+      "path": "src/code-identity.mjs",
+      "bytes": 8362,
+      "sha256": "fb8b3ac4e9e06f837bd4f149ecbe843aca7e215b2940ae06501e524293cda2ec"
+    },
+    {
+      "path": "src/demo-recording.mjs",
+      "bytes": 2780,
+      "sha256": "fc621d217cc9e0b88f7366e7a8967d880987e755e6aba4856244b6cb15ebc90a"
+    },
+    {
+      "path": "src/domain.mjs",
+      "bytes": 20484,
+      "sha256": "a5ab886c84a61dcbf10810c9f98f1561d531772a9c99a290994309450fbbe2df"
+    },
+    {
+      "path": "src/live-lock.mjs",
+      "bytes": 10240,
+      "sha256": "f2f908fcc952f60057260ba54c0fdb6d25077b1b4c06d8f555b08e17de6b9c0d"
+    },
+    {
+      "path": "src/live-signer-http.mjs",
+      "bytes": 6335,
+      "sha256": "6273540013b8c367ffa09a781ddd848be64fc020b3238ade08a0c6ae53275641"
+    },
+    {
+      "path": "src/mcp-integration.mjs",
+      "bytes": 12020,
+      "sha256": "1c3923bbb07e5d526a2220e0dee12992b8730de2a499c5113957d90318498808"
+    },
+    {
+      "path": "src/mcp-stdio.mjs",
+      "bytes": 2642,
+      "sha256": "89e0b7f2098ec1ac860e0cca667c94eace3eab46d25b20a8a042651581cb3b3d"
+    },
+    {
+      "path": "src/mcp.mjs",
+      "bytes": 7770,
+      "sha256": "fe9ed7b6b4f87cd0557a39ae1ebd8a71d535c87b07ae51de6609488be08f591d"
+    },
+    {
+      "path": "src/server.mjs",
+      "bytes": 12970,
+      "sha256": "e1cb915e4fc6c25a1661b8e295a3e6cd90fb4ad12bad5e704dd95e8e34f9e696"
+    },
+    {
+      "path": "src/store.mjs",
+      "bytes": 4273,
+      "sha256": "dc2c4d9cde4cfea7efeffd5d596353dcc0078a34f406c45ac93a3df89c693e49"
+    },
+    {
+      "path": "tools/check-demo.mjs",
+      "bytes": 1324,
+      "sha256": "396a63ee0d8c74fd8b22c9bf22dbe4de2542e40c1a62e41425042cdd8b6be6ec"
+    },
+    {
+      "path": "tools/export-live-evidence.mjs",
+      "bytes": 11071,
+      "sha256": "7f6ec42c9d07875b0a66566fd4c4405beb26abf9d44b880119ee7a98c2a0657e"
+    },
+    {
+      "path": "tools/live-signer.mjs",
+      "bytes": 8517,
+      "sha256": "0963ac2cb1c9d61a97bc581a9116a35ece8b3a6cb03796e2b478613684279745"
+    },
+    {
+      "path": "tools/start-live-signer.ps1",
+      "bytes": 4867,
+      "sha256": "68476d26be8b9e848e4607a0af7bb37ba631900501d166e487e6414c0e53028d"
+    },
+    {
+      "path": "tools/write-mcp-config.mjs",
+      "bytes": 687,
+      "sha256": "5c652c17a0fcb8e0fc88ba9e2185e77f57a89130099481e0fd7f07b5bd0a5fb1"
+    },
+    {
+      "path": "vendor/ethers-6.17.0/ethers.umd.min.cjs",
+      "bytes": 526551,
+      "sha256": "532950515fd29ae9f7a21ceb2b68100815024d7944c3d5a92246d5b900bd703b"
+    }
+  ],
+  "codeIdentitySha256": "086c78401b54a9f9d9f6a47018b4ed6e0e04038e5a5c708d685b06443d31dc79",
+  "recordedAt": "2026-09-15T08:03:28.367Z",
+  "gitHead": "e63c0f6306c852fee19df4b79a256fe6cd85cbfb"
+}

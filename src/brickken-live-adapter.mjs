@@ -849,6 +849,7 @@ export class LiveStepExecutor {
     };
     const createdAt = iso(this.now());
     let binding;
+    let x402Quote = null;
     if (plan.LIVE_STEP_ROUTE[step] === 'sepolia-rpc') {
       const tx = plan.checkLiveTransaction(proposal, step, {
         chainId: SEPOLIA_CHAIN_ID, from, to, value: '0', data, nonce, gasLimit, type: 2, ...fees
@@ -867,6 +868,8 @@ export class LiveStepExecutor {
       let parsed;
       try { parsed = parseRamsPrepareResponse(responseText); }
       catch (error) { fail('PREPARATION_REJECTED', { layer: 'brickken-api', step, check: error?.code ?? null }); }
+      // The quote is evidence of what the API priced, never a payment and never part of the preparation hash.
+      x402Quote = parsed.x402Quote ?? null;
       let tx;
       try { tx = plan.checkLiveTransaction(proposal, step, parsed.transaction, { nonce }); }
       catch (error) { fail('PREPARED_TRANSACTION_REJECTED', { layer: 'local-validation', step, check: error?.code ?? null }); }
@@ -891,7 +894,8 @@ export class LiveStepExecutor {
     this.onEvidence(`${operationId}-preparation`, {
       operationId, step, route: binding.route, apiTxId: binding.apiTxId, preparationHash: binding.preparationHash,
       transaction: binding.transaction, gasEstimate: estimate, preparedAt: createdAt,
-      observedBlock: { number: block.number, hash: block.hash, baseFeePerGas: block.baseFeePerGas }
+      observedBlock: { number: block.number, hash: block.hash, baseFeePerGas: block.baseFeePerGas },
+      x402Quote
     });
     return record;
   }

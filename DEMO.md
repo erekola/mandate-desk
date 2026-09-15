@@ -20,7 +20,7 @@ Open http://127.0.0.1:4327/integration. The page labels its fixture provenance a
 
 The proposed live slice is Ethereum Sepolia, chain 11155111, transferring 0.01 test USDC with equal per-transfer, cumulative and allowance caps of 10000 raw units. Its over-limit case is 20000 raw units. These amounts belong to the separate live proposal and are unrelated to the 30/80/50/25 MDT simulation sequence.
 
-The repository has no confirmed live transaction, so there are no transaction explorer links. A local or API denial must never be given an invented transaction hash.
+The simulation and the preparation page have no live transaction, so they show no transaction explorer links. A local or API denial must never be given an invented transaction hash. The six confirmed transactions of the live run of 15 September 2026 are listed with their explorer links in verification/sepolia-live-c990e8a178b0/transactions.json, and http://127.0.0.1:4327/live-demo renders a completed run from its saved state when the application runs with --live.
 
 ## Record the walkthrough again
 

@@ -445,15 +445,29 @@ test('parseRamsPrepareResponse rejects a relayed or principal-signature mode and
   assert.equal(parseRamsPrepareResponse(direct).mode, 'direct');
 });
 
-test('parseRamsPrepareResponse stops at a payment requirement whether it appears at the root or inside data', () => {
+test('parseRamsPrepareResponse reads an x402Requirements quote at the root or inside data as information, keeps it out of the transaction, and refuses a quote that is not an object', () => {
   const inner = { transactions: ramsTransaction(), txId: 'rams-fixture-006' };
+  const quote = { scheme: 'exact', network: 'eip155:84532', asset: 'USDC', maxAmountRequired: '250000', payTo: '0x' + '55'.repeat(20) };
   for (const body of [
-    JSON.stringify({ ...inner, x402Requirements: {} }),
-    JSON.stringify({ data: inner, x402Requirements: {} }),
-    JSON.stringify({ data: { ...inner, x402Requirements: {} } })
+    JSON.stringify({ ...inner, x402Requirements: quote }),
+    JSON.stringify({ data: inner, x402Requirements: quote }),
+    JSON.stringify({ data: { ...inner, x402Requirements: quote } })
   ]) {
-    assert.throws(() => parseRamsPrepareResponse(body), { code: 'PAYMENT_REVIEW_REQUIRED' });
+    const parsed = parseRamsPrepareResponse(body);
+    assert.deepEqual(parsed.x402Quote, quote);
+    assert.ok(Object.isFrozen(parsed.x402Quote));
+    assert.equal(parsed.txId, 'rams-fixture-006');
+    assert.equal(Object.hasOwn(parsed.transaction, 'x402Requirements'), false);
   }
+  assert.equal(parseRamsPrepareResponse(JSON.stringify({ data: inner })).x402Quote, null);
+  // The documentation does not fix the quote's shape: a list, a string, a number or null are read as data too.
+  const list = [{ scheme: 'exact', network: 'eip155:84532' }];
+  const listed = parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: list } }));
+  assert.deepEqual(listed.x402Quote, list);
+  assert.ok(Object.isFrozen(listed.x402Quote) && Object.isFrozen(listed.x402Quote[0]));
+  assert.equal(parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: 'pay' } })).x402Quote, 'pay');
+  assert.equal(parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: 1 } })).x402Quote, 1);
+  assert.equal(parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: null } })).x402Quote, null);
 });
 
 test('parseRamsPrepareResponse rejects an extra or missing transaction key, wrong type discriminant, two-transaction batches, a non-string txId, and invalid JSON, never as a raw SyntaxError', () => {
@@ -587,4 +601,20 @@ test('postBrickkenPrepare (the original caller) still posts to the fixed prepare
   const body = await postBrickkenPrepare({ credential: SECRET, body: { method: 'approve' }, fetchImpl });
   assert.equal(observed.url, BRICKKEN_PREPARE_URL);
   assert.equal(body, '{}');
+});
+
+test('parseRamsPrepareResponse accepts the response shape the sandbox returned on 2026-09-15: root level, an executionMode echo of client-signed and an x402Requirements list; a relayed echo is refused', () => {
+  const quote = [{ scheme: 'exact', network: 'eip155:11155111', asset: 'USDC', maxAmountRequired: '1', payTo: '0x' + '55'.repeat(20), resource: 'x', description: 'y' }, { scheme: 'exact' }, { scheme: 'exact' }];
+  const observed = {
+    transactions: ramsTransaction(), txId: 'rams-live-shape-001',
+    info: { contractAddress: ramsTransaction().to, mode: 'direct', executorAddress: ramsTransaction().to, selector: '0x23b872dd', action: '0x' + '23b872dd' + '00'.repeat(28), supported: true, hasAmount: true, amountIndex: 2 },
+    executionMode: 'client-signed', x402Requirements: quote
+  };
+  const parsed = parseRamsPrepareResponse(JSON.stringify(observed));
+  assert.equal(parsed.txId, 'rams-live-shape-001');
+  assert.equal(parsed.mode, 'direct');
+  assert.deepEqual(parsed.x402Quote, quote);
+  assert.throws(() => parseRamsPrepareResponse(JSON.stringify({ ...observed, executionMode: 'brickken-relayed' })), { code: 'MODE_REJECTED' });
+  assert.throws(() => parseRamsPrepareResponse(JSON.stringify({ ...observed, executionMode: 7 })), { code: 'MODE_REJECTED' });
+  assert.throws(() => parseRamsPrepareResponse(JSON.stringify({ ...observed, unexpected: 1 })), { code: 'STRUCTURE' });
 });

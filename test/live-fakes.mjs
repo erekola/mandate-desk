@@ -506,7 +506,9 @@ export class FakeSignerGateway {
           maxFeePerGas: big(fault === 'HIGH_FEE' ? 31n * GWEI : 2n * base + GWEI), type: 2
         };
         const txId = `fake_prepare_${++gateway.counter}`;
-        const responseText = JSON.stringify({ data: { transactions: transaction, txId, info: { contractAddress: transaction.to, mode: 'direct' } } });
+        // The documented response carries an x402Requirements quote beside the transaction; the fake sends one so every live test reads it as data.
+        const x402Requirements = { scheme: 'exact', network: 'eip155:84532', asset: 'USDC', maxAmountRequired: '250000', payTo: '0x' + '55'.repeat(20), note: 'fake quote, never paid' };
+        const responseText = JSON.stringify({ data: { transactions: transaction, txId, info: { contractAddress: transaction.to, mode: 'direct' }, x402Requirements } });
         try {
           const parsed = parseRamsPrepareResponse(responseText);
           plan.checkLiveTransaction(p, step, parsed.transaction, { nonce: String(normalized.nonce) });

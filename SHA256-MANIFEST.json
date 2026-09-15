@@ -5,7 +5,7 @@
   "excludes": [
     "SHA256-MANIFEST.json"
   ],
-  "fileCount": 94,
+  "fileCount": 125,
   "files": [
     {
       "path": ".gitattributes",
@@ -19,13 +19,13 @@
     },
     {
       "path": "AI-DISCLOSURE.md",
-      "bytes": 1899,
-      "sha256": "68d71e7497b3e1313e7d89740a554e8145eb6f466e8aa45f5f876106d23eeafb"
+      "bytes": 2436,
+      "sha256": "f5f1a03cd455e7e0d243afe4bcc21791ea75e719ff5779623fbbfaa093591fce"
     },
     {
       "path": "DEMO.md",
-      "bytes": 4021,
-      "sha256": "104765533417fe08647f1ccdb412613990b4e3e510d67cc9050e6e9d4fc83975"
+      "bytes": 4323,
+      "sha256": "3265e0bd766c9209e3c449c8db37163439b7b81961ea8a1834534c34752b4a37"
     },
     {
       "path": "LICENSE",
@@ -34,8 +34,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 9457,
-      "sha256": "66bffb30940ab8ceec519897fa57ae7114467e988702bdf95ee711d2f770c810"
+      "bytes": 10735,
+      "sha256": "3d774ec6dbb784bc60e3a05bfa330c351d63c3ce4dacea44660bafdf3da8876e"
     },
     {
       "path": "THIRD-PARTY-NOTICES.md",
@@ -44,8 +44,8 @@
     },
     {
       "path": "VERIFICATION.md",
-      "bytes": 15508,
-      "sha256": "14fc0713dd8033febc16020f25fabd6658fc04946a3c4660edc250a5562ea37b"
+      "bytes": 21521,
+      "sha256": "0ff9c8e94260767fa809f59910d4c47d14b4b1e23238567720de94531cc9e4e1"
     },
     {
       "path": "integration/demo-proposal.json",
@@ -69,8 +69,8 @@
     },
     {
       "path": "media/mandate-desk-card.png",
-      "bytes": 333848,
-      "sha256": "017c82212729f53ff4df25a2174ee5520a9f5212046ba3f82a1c2466a851d263"
+      "bytes": 335494,
+      "sha256": "7074003574a13dbd63e10cde59a29834f45d859f198c8b5c32f145f15065416b"
     },
     {
       "path": "media/mandate-desk-demo.mp4",
@@ -179,8 +179,8 @@
     },
     {
       "path": "src/brickken-live-adapter.mjs",
-      "bytes": 66358,
-      "sha256": "80c4afcea1d50cf5ec098115b8aed1a94848c818fc0a0134fd70b15c0e4d3613"
+      "bytes": 66556,
+      "sha256": "b8ad64de0639381cf56c095bc89a909fabf5e184ca86fd6e423459d9bb1f6211"
     },
     {
       "path": "src/brickken-live-completeness.mjs",
@@ -194,8 +194,8 @@
     },
     {
       "path": "src/brickken-live-signer.mjs",
-      "bytes": 19806,
-      "sha256": "96fc0c6af346795215567e9ed94a70dfe283475f8a4febbd85501e121306a8c7"
+      "bytes": 20942,
+      "sha256": "96192c4f26919da8aba47f8c710f51a9d88e69ef8cdf696baf9da13750562246"
     },
     {
       "path": "src/brickken-mandate.mjs",
@@ -209,8 +209,8 @@
     },
     {
       "path": "src/brickken-prepare.mjs",
-      "bytes": 13718,
-      "sha256": "7ee4a74a41973fa040d0d24c5d73a5cc26eb84f3cc5ce6c7d7b53c52d182eb35"
+      "bytes": 15769,
+      "sha256": "cb23199e4a0bcbf79d6dcafe675cf9e3b01297684d4521ac5b81c298952ab644"
     },
     {
       "path": "src/brickken-read.mjs",
@@ -319,8 +319,8 @@
     },
     {
       "path": "test/brickken-live-http.test.mjs",
-      "bytes": 28441,
-      "sha256": "e6cc533ce7821a0823735b7351662360fa3d60d627ed387e7a82ac9b331c8bf1"
+      "bytes": 31115,
+      "sha256": "656183afe32048b6f58d5d6bf407b9a44e0f9af9dfa44a86d6f236c1f60bb1e9"
     },
     {
       "path": "test/brickken-live-journal.test.mjs",
@@ -349,8 +349,8 @@
     },
     {
       "path": "test/brickken-live-signer.test.mjs",
-      "bytes": 28258,
-      "sha256": "330caf10f2ee4846178614d4530e9b5ab4fd5f0b3ed50bf5ca572ca480252fb6"
+      "bytes": 28903,
+      "sha256": "49625da14f1cc37f869a656a78013326e39c45adc04b693f92e0b46fa121f9ff"
     },
     {
       "path": "test/brickken-live-workspace.test.mjs",
@@ -369,8 +369,8 @@
     },
     {
       "path": "test/brickken-prepare.test.mjs",
-      "bytes": 13185,
-      "sha256": "d1d79ae506a0778d2cb9e393271f41c0df0ef839ba1632e276e0a1c51bb5ce3b"
+      "bytes": 13582,
+      "sha256": "08fe4befb3ef22a0692092bd407904d1a9fd87bdc618681b6ff67a2fd0c928a2"
     },
     {
       "path": "test/brickken-read.test.mjs",
@@ -414,8 +414,8 @@
     },
     {
       "path": "test/live-fakes.mjs",
-      "bytes": 28493,
-      "sha256": "0781df3f165a30ce5fdcae59701f15750fe443596bdaf744bd2d00f66be6c012"
+      "bytes": 28846,
+      "sha256": "dfa23385768aeb5547444b096cb11123f38b753bb52c8cefb7089ce73c890d75"
     },
     {
       "path": "test/mcp-transport.test.mjs",
@@ -476,6 +476,161 @@
       "path": "verification/brickken-sandbox-2026-09-14/public-chain/action-setup-simulation.json",
       "bytes": 1392,
       "sha256": "02767a96aea371540091db434b22e141fbb86c2a2430d688f0818962fc32b658"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/SHA256SUMS.json",
+      "bytes": 3017,
+      "sha256": "1cc5883bff78dd85c2fb1af598dcd097ed38c398441fb34d879d18d6dafe113f"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/code-identity-start.json",
+      "bytes": 7679,
+      "sha256": "e452cbfd6269aa0979de8247a72d3c86f9628ed77cf09188d318d1d5ecd7710b"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/code-identity.json",
+      "bytes": 7679,
+      "sha256": "9150f3388aaa413a7721d479e50cc76fc40843919af3b9dc666bb3f279d8e4ee"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/controls/control-after-revoke.json",
+      "bytes": 4533,
+      "sha256": "3063a354e6cc4841fd0317e8b15927bea3e171030efdfc66a1090cbaa235ae3e"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/controls/control-before-revoke.json",
+      "bytes": 3255,
+      "sha256": "6f3c99eecb1842c2d01ccf1d63a6bef5a3d3c6eceb5a4fbd3cf78a7411cd8e4e"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/controls/control-cumulative-cap.json",
+      "bytes": 3944,
+      "sha256": "491e39401648dcbcda53bdfd5dd596714baa8ef4757ff8004a31621650cb7dbd"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/controls/control-transaction-cap.json",
+      "bytes": 5003,
+      "sha256": "66fe7e52e762c180a4c0814d0915b41c11552f377b43a0c4e9cc7e8c6778567c"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/finality.json",
+      "bytes": 2566,
+      "sha256": "2d14dbe65a5b94141bb389e7a33127cbcc7bd929e18abbf2dd2c1627e657deeb"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/preflight-plan.json",
+      "bytes": 2283,
+      "sha256": "8f9e4798ec70f062408af61eac80b0cec550676e1295ad4cab84de76798af2a7"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/preflight-start.json",
+      "bytes": 2283,
+      "sha256": "1b76784c0d7442e6b8e16087e9e2e3153ea1f0bde1af780ad9df5c03b3c8c348"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/run-approval.json",
+      "bytes": 15326,
+      "sha256": "a1c3f7762331c00d3cbf8bb867d0a7e972fbdc96a7e970ed8a5a82ec20137a93"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/run.json",
+      "bytes": 6057,
+      "sha256": "d6d02c8da85bae56040422f0bf157bcd4c6ef4a882936b6d1430501d40b2cf13"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/approve-postcheck.json",
+      "bytes": 4729,
+      "sha256": "8b93a94735e1dd4474323332c9dc4f61df74aa384e862a4337d5477cf4c5f6be"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/approve-preparation.json",
+      "bytes": 953,
+      "sha256": "ca15e45de6ef03328846f79f0dd150496047cef1dff338e64c099d6fcc06f6d1"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/approve-receipt.json",
+      "bytes": 1422,
+      "sha256": "75bed93f72f0a45b1868618e0864f02a5dde364f71fc5cec6cc416357cf72556"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/approveReset-postcheck.json",
+      "bytes": 4731,
+      "sha256": "01046c3af1b9d8fe7c41de6e823ff4c454f9152bd5932991f28dac8637b0481e"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/approveReset-preparation.json",
+      "bytes": 963,
+      "sha256": "d9767ffa03d874c3c756a60aa60f93382848d5a420c603160a8c4dd45ca7c728"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/approveReset-receipt.json",
+      "bytes": 1432,
+      "sha256": "952ce13668ba1d7e52a835e19fb0a03016e93e05095f2cc514e60f2b2dcc0950"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/execute-postcheck.json",
+      "bytes": 11669,
+      "sha256": "6b6965ccc9a1900111c400751d2bec4246422f35900bab57aac7163a1609abb4"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/execute-preparation.json",
+      "bytes": 3177,
+      "sha256": "b68d438c0e47fa2d4ccd23d272b4d712ed0c5f4405bf63badc617bfa08388fc2"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/execute-receipt.json",
+      "bytes": 2279,
+      "sha256": "25772f0bf60ea962e8c7132500cbecc9b8eb70fe17744255fe42865e46c99b52"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/grant-postcheck.json",
+      "bytes": 10461,
+      "sha256": "bcccd810d2c2be44f0018271188364a00c54e8eb7245f1f662f0fcdb79299698"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/grant-preparation.json",
+      "bytes": 3812,
+      "sha256": "5aff2f5eff4dad03bc600fcb68b48031ea366437605a5dade4dee4e27d6a2ccb"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/grant-receipt.json",
+      "bytes": 2405,
+      "sha256": "6f0dcb623f1be8c8822d9c0c15004fc57ef6ebe0e53d703b5036f88d4b58a7cd"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/revoke-postcheck.json",
+      "bytes": 9682,
+      "sha256": "3aab25a49f6f3e51c21fa6a055c7b345714db47f5d9d243fdac4e91d94353f7d"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/revoke-preparation.json",
+      "bytes": 3045,
+      "sha256": "a580f5179729ff6d745a8e763d09ec571f415e5b9a7a9e29a03d780886856362"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/revoke-receipt.json",
+      "bytes": 1421,
+      "sha256": "538e45438e70cf7d0f19912922b55f672c7da82600bc5eb91b9928ff0fb49d95"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/setAction-postcheck.json",
+      "bytes": 4781,
+      "sha256": "7c147f317d82a89283bf22805b899f6773d68d0659efca98b615ead846a17e9c"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/setAction-preparation.json",
+      "bytes": 2987,
+      "sha256": "75eab1125108e0b6a62f546427af7cac2c73983d0a3eebc5828566f328cd8e9c"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/steps/setAction-receipt.json",
+      "bytes": 710,
+      "sha256": "fea4320a60bfb7fc2c99c6c5c8a2714e49c49fd5754e98212cdeb5f838c619cf"
+    },
+    {
+      "path": "verification/sepolia-live-c990e8a178b0/transactions.json",
+      "bytes": 14366,
+      "sha256": "584c144178ad0deee255c9e8ff01a451ea1bf4e89dfb261faaa5e79d4108b6f9"
     }
   ]
 }

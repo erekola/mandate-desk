@@ -164,26 +164,61 @@ export function validateExecutionPreparation(value, expectationInput, nowSeconds
   }
 }
 
+// The live sandbox echoes the execution mode as a top-level executionMode
+// string beside txId, transactions and info (observed 2026-09-15, not in the
+// OpenAPI document of 2026-09-14). Only client-signed is accepted here: the
+// relayed mode would make Brickken the sender, which the plan never allows.
+function checkExecutionModeEcho(json) {
+  if (!Object.hasOwn(json, 'executionMode')) return;
+  if (json.executionMode !== 'client-signed') fail('MODE_REJECTED');
+}
+
+// The documented prepare response carries an x402Requirements quote beside
+// txId and transactions: a price preview of the client-controlled operation,
+// present whether or not an API key is sent. With x-api-key the API skips the
+// payment path, and a real payment challenge is an HTTP 402 that the caller
+// classifies before any body reaches this parser. The quote is read as data
+// in whatever JSON form the API gives it (the documentation does not fix its
+// shape, and the first live attempt received a form that was not an object),
+// kept out of the transaction and the preparation hash, never acted on and
+// never paid (Tek-411). A present key with the JSON value null reads as null.
+function readX402Quote(container) {
+  if (!Object.hasOwn(container, 'x402Requirements')) return null;
+  const quote = container.x402Requirements;
+  if (quote === null || quote === undefined) return null;
+  return deepFreeze(JSON.parse(JSON.stringify(quote)));
+}
+function deepFreeze(value) {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) deepFreeze(child);
+  }
+  return value;
+}
+
 // Generic prepare documents a root container; RAMS documents a data envelope.
 // Accept exactly one of these, never fall back from a malformed wrapper.
 // RAMS endpoints document one transaction object, while generic prepare uses a
-// transaction array. Accept one closed transaction in either form. Payment
-// offers stop here.
+// transaction array. Accept one closed transaction in either form. A payment
+// quote is read as data; a payment challenge is an HTTP status the caller sees.
 export function validateExecutePrepareResponse(body, expectationInput, nowSeconds) {
   try {
     if (typeof body !== 'string' || Buffer.byteLength(body, 'utf8') > MAX_BODY_BYTES) fail('BODY_SIZE');
     const root = JSON.parse(body);
     if (!plain(root)) fail('ENVELOPE');
-    if (Object.hasOwn(root, 'x402Requirements')) fail('PAYMENT_REVIEW_REQUIRED');
+    let quote = readX402Quote(root);
     let json = root;
     if (Object.hasOwn(root, 'data')) {
-      shape(root, ['data']);
+      shape(root, quote === null ? ['data'] : ['data', 'x402Requirements']);
       json = root.data;
       if (!plain(json)) fail('ENVELOPE');
-      if (Object.hasOwn(json, 'x402Requirements')) fail('PAYMENT_REVIEW_REQUIRED');
+      quote = quote ?? readX402Quote(json);
     }
     const keys = Object.hasOwn(json, 'info') ? ['transactions', 'txId', 'info'] : ['transactions', 'txId'];
+    if (Object.hasOwn(json, 'x402Requirements')) keys.push('x402Requirements');
+    if (Object.hasOwn(json, 'executionMode')) keys.push('executionMode');
     shape(json, keys);
+    checkExecutionModeEcho(json);
     if (Object.hasOwn(json, 'info') && !plain(json.info)) fail('INFO');
     let transactionInput;
     let transactionsContainerShape;
@@ -222,15 +257,19 @@ export function parseRamsPrepareResponse(body) {
     if (typeof body !== 'string' || Buffer.byteLength(body, 'utf8') > MAX_BODY_BYTES) fail('BODY_SIZE');
     const root = JSON.parse(body);
     if (!plain(root)) fail('ENVELOPE');
-    if (Object.hasOwn(root, 'x402Requirements')) fail('PAYMENT_REVIEW_REQUIRED');
+    let quote = readX402Quote(root);
     let json = root;
     if (Object.hasOwn(root, 'data')) {
-      shape(root, ['data']);
+      shape(root, quote === null ? ['data'] : ['data', 'x402Requirements']);
       json = root.data;
       if (!plain(json)) fail('ENVELOPE');
-      if (Object.hasOwn(json, 'x402Requirements')) fail('PAYMENT_REVIEW_REQUIRED');
+      quote = quote ?? readX402Quote(json);
     }
-    shape(json, Object.hasOwn(json, 'info') ? ['transactions', 'txId', 'info'] : ['transactions', 'txId']);
+    const keys = Object.hasOwn(json, 'info') ? ['transactions', 'txId', 'info'] : ['transactions', 'txId'];
+    if (Object.hasOwn(json, 'x402Requirements')) keys.push('x402Requirements');
+    if (Object.hasOwn(json, 'executionMode')) keys.push('executionMode');
+    shape(json, keys);
+    checkExecutionModeEcho(json);
     if (typeof json.txId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(json.txId)) fail('TX_ID');
     let transactionInput;
     let transactionsContainerShape;
@@ -269,7 +308,7 @@ export function parseRamsPrepareResponse(body) {
       }
       if (Object.hasOwn(json.info, 'contractAddress')) contractAddress = lowerAddress(json.info.contractAddress);
     }
-    return Object.freeze({ txId: json.txId, transactionsContainerShape, transaction, mode, contractAddress });
+    return Object.freeze({ txId: json.txId, transactionsContainerShape, transaction, mode, contractAddress, x402Quote: quote });
   } catch (error) {
     if (error instanceof BrickkenPrepareError) throw error;
     fail('PREPARATION_REJECTED');

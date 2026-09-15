@@ -1,0 +1,85 @@
+{
+  "operationId": "live_c990e8a178b04a35835d8fe92097c20f_execute",
+  "step": "execute",
+  "route": "brickken-api",
+  "apiTxId": "0xaa280844a40a83a23d9edafc5c3d2255e417583f4c188d340d6e94491fd1d189",
+  "preparationHash": "261668f0f297d6620a643c466a94aee6e87c3aae09ff56e7805da2888fd71e7c",
+  "transaction": {
+    "chainId": "11155111",
+    "from": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+    "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+    "value": "0",
+    "data": "0x1cff79cd0000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c72380000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006423b872dd0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d40000000000000000000000008888888888888888888888888888888888888888000000000000000000000000000000000000000000000000000000000000271000000000000000000000000000000000000000000000000000000000",
+    "nonce": "0",
+    "gasLimit": "142602",
+    "type": 2,
+    "maxPriorityFeePerGas": "1150000",
+    "maxFeePerGas": "1188075870"
+  },
+  "gasEstimate": "118835",
+  "preparedAt": "2026-09-15T08:05:47.076Z",
+  "observedBlock": {
+    "number": "11708609",
+    "hash": "0xa177a0b4cb44ee2d044aedec68e505f97eaa7dadd13864ba4eb41d9180b0ed6f",
+    "baseFeePerGas": "1069501812"
+  },
+  "x402Quote": [
+    {
+      "scheme": "exact",
+      "network": "eip155:11155111",
+      "asset": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+      "amount": "5000",
+      "payTo": "0x6b0173489007dE9E2e619eccd98E8fa9c610849a",
+      "maxTimeoutSeconds": 300,
+      "extra": {
+        "name": "USDC",
+        "version": "2",
+        "tokenSymbol": "USDC",
+        "displayPrice": "0.005000000000000000 USDC",
+        "assetTransferMethod": "eip3009",
+        "chainId": "11155111",
+        "paymentChainId": "11155111",
+        "operationChainId": "11155111",
+        "routeKey": "POST /send-transactions"
+      }
+    },
+    {
+      "scheme": "exact",
+      "network": "eip155:11155111",
+      "asset": "0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4",
+      "amount": "5000",
+      "payTo": "0x6b0173489007dE9E2e619eccd98E8fa9c610849a",
+      "maxTimeoutSeconds": 300,
+      "extra": {
+        "name": "EURC",
+        "version": "2",
+        "tokenSymbol": "EURC",
+        "displayPrice": "0.005000000000000000 EURC",
+        "assetTransferMethod": "eip3009",
+        "chainId": "11155111",
+        "paymentChainId": "11155111",
+        "operationChainId": "11155111",
+        "routeKey": "POST /send-transactions"
+      }
+    },
+    {
+      "scheme": "exact",
+      "network": "eip155:11155111",
+      "asset": "0x2458fB1620ff84019d73216fF20aA1F82Bc8E4CC",
+      "amount": "5000000000000000",
+      "payTo": "0x6b0173489007dE9E2e619eccd98E8fa9c610849a",
+      "maxTimeoutSeconds": 300,
+      "extra": {
+        "name": "Brickken Testnet",
+        "version": "1",
+        "tokenSymbol": "BKN",
+        "displayPrice": "0.005000000000000000 BKN",
+        "assetTransferMethod": "permit2",
+        "chainId": "11155111",
+        "paymentChainId": "11155111",
+        "operationChainId": "11155111",
+        "routeKey": "POST /send-transactions"
+      }
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "operationId": "live_c990e8a178b04a35835d8fe92097c20f_setAction",
+  "step": "setAction",
+  "receipt": {
+    "transactionHash": "0x4030808d2aa11840bca24d41ce09e2b8564b6c3d771a9619496ee5b843ae9a24",
+    "status": 1,
+    "from": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+    "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+    "blockNumber": "11708599",
+    "blockHash": "0x80603e00854080807a78cdfbfcc2a8afa0180bd0603dffed377b63388d826c79",
+    "gasUsed": "46794",
+    "effectiveGasPrice": "1070381865",
+    "logs": []
+  },
+  "secondaryBlockHash": "0x80603e00854080807a78cdfbfcc2a8afa0180bd0603dffed377b63388d826c79",
+  "confirmations": 2,
+  "confirmationsPrimary": 2,
+  "confirmationsSecondary": 2
+}

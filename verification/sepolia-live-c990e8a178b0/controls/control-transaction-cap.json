@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "kind": "mandate-desk-live-control",
+  "controlId": "control-transaction-cap",
+  "observedAt": "2026-09-15T08:05:11.284Z",
+  "block": {
+    "number": "11708606",
+    "hash": "0x89c1d1c762ffb0e2e098db55004f2d48e061fd81db7a0e423354bb8608b367b7",
+    "timestamp": "1789459500"
+  },
+  "broadcast": false,
+  "transactionHash": null,
+  "calls": [
+    {
+      "label": "execute-within-transaction-cap",
+      "from": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+      "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+      "value": "0",
+      "data": "0x1cff79cd0000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c72380000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006423b872dd0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d40000000000000000000000008888888888888888888888888888888888888888000000000000000000000000000000000000000000000000000000000000271000000000000000000000000000000000000000000000000000000000",
+      "expect": "success",
+      "result": {
+        "ok": true,
+        "returnData": "0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001"
+      },
+      "decodedRevert": null,
+      "secondaryAgrees": true,
+      "passed": true
+    },
+    {
+      "label": "execute-over-transaction-cap",
+      "from": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+      "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+      "value": "0",
+      "data": "0x1cff79cd0000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c72380000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006423b872dd0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d400000000000000000000000088888888888888888888888888888888888888880000000000000000000000000000000000000000000000000000000000002af800000000000000000000000000000000000000000000000000000000",
+      "expect": "revert:CannotExecute",
+      "result": {
+        "ok": false,
+        "revertData": "0x0aae0b0900000000000000000000000018ff8b19e9e9cc35c7f10b1c690bb84d56cc94420000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c723823b872dd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002af8"
+      },
+      "decodedRevert": {
+        "selector": "0x0aae0b09",
+        "name": "CannotExecute",
+        "args": {
+          "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "target": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "selector": "0x23b872dd",
+          "amount": "11000"
+        }
+      },
+      "secondaryAgrees": true,
+      "passed": true
+    }
+  ],
+  "facts": {
+    "allowance": "15000",
+    "principalTokenBalance": "20000000",
+    "recipientTokenBalance": "3100",
+    "mandate": {
+      "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+      "validFrom": "1789459464",
+      "validUntil": "1789463064",
+      "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "revoked": false,
+      "complianceProvider": "0xa90d2503d5d9b80ecc27856ff76f892b8c02f278",
+      "identityRef": "0x6cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f7633",
+      "asset": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "maxTransactionValue": "10000",
+      "maxCumulativeValue": "15000",
+      "cumulativeUsed": "0",
+      "metadata": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "actionEnabled": true,
+    "agentFrozen": false,
+    "executorAction": {
+      "supported": true,
+      "hasAmount": true,
+      "amountIndex": 2
+    }
+  },
+  "secondaryFactsAgree": true,
+  "conditions": [
+    {
+      "id": "mandate-exists",
+      "holds": true
+    },
+    {
+      "id": "within-validity-window",
+      "holds": true
+    },
+    {
+      "id": "agent-not-frozen",
+      "holds": true
+    },
+    {
+      "id": "action-enabled",
+      "holds": true
+    },
+    {
+      "id": "executor-action-configured",
+      "holds": true
+    },
+    {
+      "id": "not-revoked",
+      "holds": true
+    },
+    {
+      "id": "cumulative-unused",
+      "holds": true
+    },
+    {
+      "id": "over-amount-exceeds-transaction-cap",
+      "holds": true
+    },
+    {
+      "id": "over-amount-within-cumulative-cap",
+      "holds": true
+    },
+    {
+      "id": "balance-covers-over-amount",
+      "holds": true
+    },
+    {
+      "id": "allowance-covers-over-amount",
+      "holds": true
+    }
+  ],
+  "allowedLegPassed": true,
+  "passed": true,
+  "interpretation": "Both calls use the same block. The allowed amount succeeds and the larger amount reverts with CannotExecute while balance, allowance, cumulative cap, validity, freeze and action checks hold, so the denial is attributed to the per-transfer cap. The larger request is an unsigned probe and was never a transaction."
+}

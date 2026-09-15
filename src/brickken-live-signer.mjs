@@ -227,6 +227,25 @@ function logHash(document) {
   });
 }
 
+// A bounded structural description of a JSON text: key names and JSON types,
+// two levels deep, at most 40 keys per level, never a value. 'unparsable' when
+// the text is not JSON.
+export function describeJsonShape(text, depth = 2) {
+  let value;
+  try { value = JSON.parse(text); } catch { return 'unparsable'; }
+  const describe = (item, level) => {
+    if (item === null) return 'null';
+    if (Array.isArray(item)) return level >= depth ? `array(${item.length})` : { array: item.length, first: item.length ? describe(item[0], level + 1) : null };
+    if (typeof item === 'object') {
+      const keys = Object.keys(item).slice(0, 40);
+      if (level >= depth) return `object(${keys.length})`;
+      return Object.fromEntries(keys.map(key => [key, describe(item[key], level + 1)]));
+    }
+    return typeof item;
+  };
+  return describe(value, 0);
+}
+
 export class LiveSigner {
   #keys;
   #credential;
@@ -293,7 +312,10 @@ export class LiveSigner {
       parsed = parseRamsPrepareResponse(text);
       checkLiveTransaction(this.proposal, request.step, parsed.transaction, { nonce: String(body.nonce) });
     } catch (error) {
-      this.#append({ type: 'prepare-rejected', role: request.role, step: request.step, code: String(error?.code ?? 'PREPARATION_REJECTED') });
+      // The response text itself is never logged; its structure (key names and
+      // JSON types, two levels deep, no values) is, so a rejected preparation can
+      // be diagnosed against the documented shape without exposing the body.
+      this.#append({ type: 'prepare-rejected', role: request.role, step: request.step, code: String(error?.code ?? 'PREPARATION_REJECTED'), responseShape: describeJsonShape(text) });
       fail(String(error?.code ?? 'PREPARATION_REJECTED'));
     }
     this.#append({ type: 'prepared', role: request.role, step: request.step, txId: parsed.txId, transaction: parsed.transaction });

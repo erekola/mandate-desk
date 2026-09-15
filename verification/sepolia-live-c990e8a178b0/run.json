@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "kind": "mandate-desk-live-run",
+  "runId": "live_c990e8a178b04a35835d8fe92097c20f",
+  "status": "completed",
+  "createdAt": "2026-09-15T08:00:44.990Z",
+  "ownerApproval": {
+    "approvedAt": "2026-09-15T08:03:15.862Z",
+    "approvalSha256": "9a2e5ee17d8bed85d30046529acc20f590be2d1bb06b6aa13e71f66228544fcb",
+    "codeIdentitySha256": "086c78401b54a9f9d9f6a47018b4ed6e0e04038e5a5c708d685b06443d31dc79"
+  },
+  "approvalSha256": "9a2e5ee17d8bed85d30046529acc20f590be2d1bb06b6aa13e71f66228544fcb",
+  "codeIdentitySha256": "086c78401b54a9f9d9f6a47018b4ed6e0e04038e5a5c708d685b06443d31dc79",
+  "complete": false,
+  "missing": [
+    "FINALITY_NOT_ALL_FINALIZED",
+    "FINALITY_ENTRY_NOT_FINALIZED:setAction",
+    "FINALITY_ENTRY_NOT_FINALIZED:approve",
+    "FINALITY_ENTRY_NOT_FINALIZED:grant",
+    "FINALITY_ENTRY_NOT_FINALIZED:execute",
+    "FINALITY_ENTRY_NOT_FINALIZED:revoke",
+    "FINALITY_ENTRY_NOT_FINALIZED:approveReset",
+    "FINALITY_CONTROL_NOT_FINALIZED:control-transaction-cap",
+    "FINALITY_CONTROL_NOT_FINALIZED:control-cumulative-cap",
+    "FINALITY_CONTROL_NOT_FINALIZED:control-before-revoke",
+    "FINALITY_CONTROL_NOT_FINALIZED:control-after-revoke"
+  ],
+  "controls": [
+    {
+      "id": "control-transaction-cap",
+      "observed": true,
+      "passed": true,
+      "blockNumber": "11708606",
+      "blockHash": "0x89c1d1c762ffb0e2e098db55004f2d48e061fd81db7a0e423354bb8608b367b7",
+      "observedAt": "2026-09-15T08:05:11.284Z",
+      "interpretation": "Both calls use the same block. The allowed amount succeeds and the larger amount reverts with CannotExecute while balance, allowance, cumulative cap, validity, freeze and action checks hold, so the denial is attributed to the per-transfer cap. The larger request is an unsigned probe and was never a transaction.",
+      "canonical": true,
+      "finalizedOnBothSources": false
+    },
+    {
+      "id": "control-cumulative-cap",
+      "observed": true,
+      "passed": true,
+      "blockNumber": "11708614",
+      "blockHash": "0x7807c28e9be506755684504ddac99117b9d1ceb707e90f16305fb5aacd701a2a",
+      "observedAt": "2026-09-15T08:06:43.415Z",
+      "interpretation": "Both AgentMandate.canExecute calls use the same block after the executed transfer. The smaller amount is allowed and the larger amount is denied while both fit the per-transfer cap. This proves the RAMS cumulative gate only; the executor token allowance would also limit a transfer.",
+      "canonical": true,
+      "finalizedOnBothSources": false
+    },
+    {
+      "id": "control-before-revoke",
+      "observed": true,
+      "passed": true,
+      "blockNumber": "11708614",
+      "blockHash": "0x7807c28e9be506755684504ddac99117b9d1ceb707e90f16305fb5aacd701a2a",
+      "observedAt": "2026-09-15T08:06:46.956Z",
+      "interpretation": "The exact revocation probe calldata succeeds as a read-only call before revocation.",
+      "canonical": true,
+      "finalizedOnBothSources": false
+    },
+    {
+      "id": "control-after-revoke",
+      "observed": true,
+      "passed": true,
+      "blockNumber": "11708621",
+      "blockHash": "0x5f0a817be87a83786480e2c09680565bbac197826b8ba1ac0864047c847bda4a",
+      "observedAt": "2026-09-15T08:08:16.105Z",
+      "interpretation": "The same calldata, sender, target and value revert with CannotExecute after revocation while balance, allowance, caps, validity, freeze and action checks still hold, so the denial is attributed to revocation. No rejected transaction was sent.",
+      "canonical": true,
+      "finalizedOnBothSources": false
+    }
+  ],
+  "replays": [],
+  "stop": null,
+  "cleanup": null,
+  "finality": {
+    "checkedAt": "2026-09-15T11:26:00.887Z",
+    "allFinalized": false,
+    "entries": [
+      {
+        "operationId": "live_c990e8a178b04a35835d8fe92097c20f_setAction",
+        "blockNumber": "11708599",
+        "blockHash": "0x80603e00854080807a78cdfbfcc2a8afa0180bd0603dffed377b63388d826c79",
+        "finalized": false
+      },
+      {
+        "operationId": "live_c990e8a178b04a35835d8fe92097c20f_approve",
+        "blockNumber": "11708602",
+        "blockHash": "0x3a52dfda7d8a2b2809a792fbec032f205477dfbc2cc5737516fb844101ce08e2",
+        "finalized": false
+      },
+      {
+        "operationId": "live_c990e8a178b04a35835d8fe92097c20f_grant",
+        "blockNumber": "11708605",
+        "blockHash": "0x5f16ae19574052e845c1a080f895d58da3e74d8e514c5c8861f90d3ea62ce336",
+        "finalized": false
+      },
+      {
+        "operationId": "live_c990e8a178b04a35835d8fe92097c20f_execute",
+        "blockNumber": "11708611",
+        "blockHash": "0x3b36b851080a33c28898c91da11bc9f587ebb85a00c4d3573a314f8cb467eff6",
+        "finalized": false
+      },
+      {
+        "operationId": "live_c990e8a178b04a35835d8fe92097c20f_revoke",
+        "blockNumber": "11708618",
+        "blockHash": "0xf77963514b6a3fd578ace695ace9ad7b2437667be60ae949b4b9b040b9952481",
+        "finalized": false
+      },
+      {
+        "operationId": "live_c990e8a178b04a35835d8fe92097c20f_approveReset",
+        "blockNumber": "11708714",
+        "blockHash": "0xe935418d3457e838f719db44d2802be18eac9034fc82739422b98ad7d29f14eb",
+        "finalized": false
+      },
+      {
+        "controlId": "control-transaction-cap",
+        "blockNumber": "11708606",
+        "blockHash": "0x89c1d1c762ffb0e2e098db55004f2d48e061fd81db7a0e423354bb8608b367b7",
+        "finalized": false
+      },
+      {
+        "controlId": "control-cumulative-cap",
+        "blockNumber": "11708614",
+        "blockHash": "0x7807c28e9be506755684504ddac99117b9d1ceb707e90f16305fb5aacd701a2a",
+        "finalized": false
+      },
+      {
+        "controlId": "control-before-revoke",
+        "blockNumber": "11708614",
+        "blockHash": "0x7807c28e9be506755684504ddac99117b9d1ceb707e90f16305fb5aacd701a2a",
+        "finalized": false
+      },
+      {
+        "controlId": "control-after-revoke",
+        "blockNumber": "11708621",
+        "blockHash": "0x5f0a817be87a83786480e2c09680565bbac197826b8ba1ac0864047c847bda4a",
+        "finalized": false
+      }
+    ]
+  }
+}

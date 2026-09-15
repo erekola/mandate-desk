@@ -19,7 +19,8 @@ import {
   LiveSigner,
   LiveSignerError,
   MAX_PREPARE_ATTEMPTS,
-  MAX_SEND_ATTEMPTS
+  MAX_SEND_ATTEMPTS,
+  describeJsonShape,
 } from '../src/brickken-live-signer.mjs';
 import {
   loadLiveProposal,
@@ -536,4 +537,12 @@ test('tools/live-signer.mjs binds 127.0.0.1, its request handler in src/live-sig
   const consoleLines = source.split('\n').filter(line => line.includes('console.'));
   assert.ok(consoleLines.length > 0, 'expected the wrapper to print some startup information');
   assert.ok(consoleLines.every(line => !line.includes('apiKey')), 'the apiKey variable must never reach a console call');
+});
+
+test('describeJsonShape reports key names and JSON types two levels deep and never a value', () => {
+  const shape = describeJsonShape(JSON.stringify({ data: { transactions: { from: '0xsecret', nonce: 7 }, txId: 'secret-id', x402Requirements: [{ payTo: '0xsecret' }] }, ok: true }));
+  assert.deepEqual(shape, { data: { transactions: 'object(2)', txId: 'string', x402Requirements: 'array(1)' }, ok: 'boolean' });
+  assert.equal(JSON.stringify(shape).includes('secret'), false);
+  assert.equal(describeJsonShape('not json'), 'unparsable');
+  assert.deepEqual(describeJsonShape('[1,2]'), { array: 2, first: 'number' });
 });
