@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-15",
+  "generatedAt": "2026-09-20",
   "algorithm": "sha256",
   "excludes": [
     "SHA256-MANIFEST.json"
@@ -34,8 +34,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 11673,
-      "sha256": "8819d96ac7c8478851112a87da1c55416261d48e5097bd06124aeff85e0b5fe6"
+      "bytes": 14212,
+      "sha256": "309746bd9b0a24a63c9911add5f869f5bc60224d1a3e52ece3a84dd4601bfb94"
     },
     {
       "path": "THIRD-PARTY-NOTICES.md",
