@@ -1,0 +1,344 @@
+{
+  "schemaVersion": 1,
+  "kind": "mandate-desk-live-run-approval",
+  "proposalHash": "415254ccd0c7d2764e5175743cc4dec6f718bf51bf0d556fda52bee8c03f6533",
+  "network": "Ethereum Sepolia",
+  "chainId": "11155111",
+  "createdAt": "2026-09-15T08:00:44.990Z",
+  "notAfter": "2026-09-19T08:00:44.990Z",
+  "signers": {
+    "owner": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+    "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442"
+  },
+  "contracts": {
+    "executor": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+    "registry": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+    "complianceProvider": "0xa90d2503d5d9b80ecc27856ff76f892b8c02f278",
+    "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+  },
+  "identityRef": "0x6cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f7633",
+  "recipient": "0x8888888888888888888888888888888888888888",
+  "limits": {
+    "maxTransactionValue": "10000",
+    "maxCumulativeValue": "15000",
+    "allowance": "15000",
+    "minimumPrincipalTokenBalance": "20000"
+  },
+  "amounts": {
+    "execute": "10000",
+    "overTransactionCapProbe": "11000",
+    "cumulativeAllowedProbe": "5000",
+    "cumulativeDeniedProbe": "6000",
+    "revocationProbe": "2500"
+  },
+  "mandateValiditySeconds": 3600,
+  "routes": {
+    "brickkenApi": {
+      "origin": "https://api.sandbox.brickken.com",
+      "authentication": "x-api-key",
+      "executionMode": "client-signed",
+      "paymentFallback": false,
+      "prepare": {
+        "setAction": "/x402/rams/set-executor-action",
+        "grant": "/x402/rams/grant-mandate",
+        "execute": "/x402/rams/execute",
+        "revoke": "/x402/rams/revoke-mandate"
+      },
+      "send": "/send-transactions",
+      "status": "/get-transaction-status",
+      "openApiSha256": "af7edefb97c2e3248efb584b1836212ce0d4a0a34d71db2a4bed0b50a0e8379f"
+    },
+    "sepoliaRpc": {
+      "operations": [
+        "approve",
+        "approveReset"
+      ],
+      "broadcastEndpoint": "https://ethereum-sepolia-rpc.publicnode.com"
+    },
+    "readEndpoints": {
+      "primary": "https://ethereum-sepolia-rpc.publicnode.com",
+      "secondary": "https://sepolia.rpc.thirdweb.com"
+    }
+  },
+  "fees": {
+    "maxFeePerGas": "30000000000",
+    "maxPriorityFeePerGas": "3000000000"
+  },
+  "budgetWei": {
+    "owner": "24600000000000000",
+    "agent": "9000000000000000"
+  },
+  "writes": [
+    {
+      "step": "setAction",
+      "signer": "owner",
+      "signerAddress": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "route": "brickken-api",
+      "endpoint": "https://api.sandbox.brickken.com/x402/rams/set-executor-action",
+      "target": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+      "nativeValue": "0",
+      "calldata": "0xa4a2285423b872dd00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+      "calldataRule": "exact",
+      "maxGasLimit": "90000",
+      "maxCostWei": "2700000000000000",
+      "prerequisites": []
+    },
+    {
+      "step": "approve",
+      "signer": "owner",
+      "signerAddress": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "route": "sepolia-rpc",
+      "endpoint": "https://ethereum-sepolia-rpc.publicnode.com",
+      "target": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "nativeValue": "0",
+      "calldata": "0x095ea7b3000000000000000000000000ff666ccd01541cd7abcabb70dba1cffec8c01d9b0000000000000000000000000000000000000000000000000000000000003a98",
+      "calldataRule": "exact",
+      "maxGasLimit": "90000",
+      "maxCostWei": "2700000000000000",
+      "prerequisites": []
+    },
+    {
+      "step": "grant",
+      "signer": "owner",
+      "signerAddress": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "route": "brickken-api",
+      "endpoint": "https://api.sandbox.brickken.com/x402/rams/grant-mandate",
+      "target": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+      "nativeValue": "0",
+      "calldata": null,
+      "calldataRule": "grantMandate for the fixed mandate, with validFrom set at preparation within 300 seconds of signing and validUntil = validFrom + 3600",
+      "maxGasLimit": "400000",
+      "maxCostWei": "12000000000000000",
+      "prerequisites": [
+        "approve"
+      ]
+    },
+    {
+      "step": "execute",
+      "signer": "agent",
+      "signerAddress": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+      "route": "brickken-api",
+      "endpoint": "https://api.sandbox.brickken.com/x402/rams/execute",
+      "target": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+      "nativeValue": "0",
+      "calldata": "0x1cff79cd0000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c72380000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006423b872dd0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d40000000000000000000000008888888888888888888888888888888888888888000000000000000000000000000000000000000000000000000000000000271000000000000000000000000000000000000000000000000000000000",
+      "calldataRule": "exact",
+      "maxGasLimit": "300000",
+      "maxCostWei": "9000000000000000",
+      "prerequisites": [
+        "grant"
+      ]
+    },
+    {
+      "step": "revoke",
+      "signer": "owner",
+      "signerAddress": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "route": "brickken-api",
+      "endpoint": "https://api.sandbox.brickken.com/x402/rams/revoke-mandate",
+      "target": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+      "nativeValue": "0",
+      "calldata": "0x5e20639e00000000000000000000000018ff8b19e9e9cc35c7f10b1c690bb84d56cc94420000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d4000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000",
+      "calldataRule": "exact",
+      "maxGasLimit": "150000",
+      "maxCostWei": "4500000000000000",
+      "prerequisites": [
+        "grant"
+      ]
+    },
+    {
+      "step": "approveReset",
+      "signer": "owner",
+      "signerAddress": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "route": "sepolia-rpc",
+      "endpoint": "https://ethereum-sepolia-rpc.publicnode.com",
+      "target": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "nativeValue": "0",
+      "calldata": "0x095ea7b3000000000000000000000000ff666ccd01541cd7abcabb70dba1cffec8c01d9b0000000000000000000000000000000000000000000000000000000000000000",
+      "calldataRule": "exact",
+      "maxGasLimit": "90000",
+      "maxCostWei": "2700000000000000",
+      "prerequisites": [
+        "approve"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "control-transaction-cap",
+      "calls": [
+        {
+          "label": "execute-within-transaction-cap",
+          "from": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+          "value": "0",
+          "data": "0x1cff79cd0000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c72380000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006423b872dd0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d40000000000000000000000008888888888888888888888888888888888888888000000000000000000000000000000000000000000000000000000000000271000000000000000000000000000000000000000000000000000000000",
+          "expect": "success"
+        },
+        {
+          "label": "execute-over-transaction-cap",
+          "from": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+          "value": "0",
+          "data": "0x1cff79cd0000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c72380000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006423b872dd0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d400000000000000000000000088888888888888888888888888888888888888880000000000000000000000000000000000000000000000000000000000002af800000000000000000000000000000000000000000000000000000000",
+          "expect": "revert:CannotExecute"
+        }
+      ],
+      "broadcast": false
+    },
+    {
+      "id": "control-cumulative-cap",
+      "calls": [
+        {
+          "label": "can-execute-remaining-cumulative",
+          "from": null,
+          "to": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+          "value": "0",
+          "data": "0xf80ba00f00000000000000000000000018ff8b19e9e9cc35c7f10b1c690bb84d56cc94420000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d40000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c723823b872dd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001388",
+          "expect": "true"
+        },
+        {
+          "label": "can-execute-over-cumulative",
+          "from": null,
+          "to": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+          "value": "0",
+          "data": "0xf80ba00f00000000000000000000000018ff8b19e9e9cc35c7f10b1c690bb84d56cc94420000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d40000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c723823b872dd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001770",
+          "expect": "false"
+        }
+      ],
+      "broadcast": false
+    },
+    {
+      "id": "control-before-revoke",
+      "calls": [
+        {
+          "label": "execute-before-revoke",
+          "from": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+          "value": "0",
+          "data": "0x1cff79cd0000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c72380000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006423b872dd0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d4000000000000000000000000888888888888888888888888888888888888888800000000000000000000000000000000000000000000000000000000000009c400000000000000000000000000000000000000000000000000000000",
+          "expect": "success"
+        }
+      ],
+      "broadcast": false
+    },
+    {
+      "id": "control-after-revoke",
+      "calls": [
+        {
+          "label": "execute-after-revoke",
+          "from": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+          "value": "0",
+          "data": "0x1cff79cd0000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c72380000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006423b872dd0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d4000000000000000000000000888888888888888888888888888888888888888800000000000000000000000000000000000000000000000000000000000009c400000000000000000000000000000000000000000000000000000000",
+          "expect": "revert:CannotExecute"
+        },
+        {
+          "label": "can-execute-after-revoke",
+          "from": null,
+          "to": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+          "value": "0",
+          "data": "0xf80ba00f00000000000000000000000018ff8b19e9e9cc35c7f10b1c690bb84d56cc94420000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d40000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c723823b872dd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000009c4",
+          "expect": "false"
+        }
+      ],
+      "broadcast": false
+    }
+  ],
+  "noncePolicy": "Each write uses the fresh pending nonce read immediately before preparation. One signature per step. Nonces strictly increase per signer. No replacement, fee bump or re-signature with a different nonce without a new approval.",
+  "confirmationPolicy": "A step advances after 2 confirmations with the same block hash on both read endpoints. The final report requires every block to be finalized on both read endpoints.",
+  "cleanup": [
+    "If approve succeeded and grant did not, approveReset sets the allowance to zero.",
+    "If grant succeeded and the run stopped, revoke ends the mandate and approveReset sets the allowance to zero.",
+    "An uncertain owner nonce is resolved from chain evidence before any cleanup write.",
+    "A transfer that reached the chain is not reversed by revoke; its effects are reported."
+  ],
+  "persistentConfiguration": "The dedicated executor keeps transferFrom enabled after the run for future mandates.",
+  "preflight": {
+    "schemaVersion": 1,
+    "kind": "mandate-desk-live-preflight",
+    "observedAt": "2026-09-15T08:00:44.990Z",
+    "endpoints": {
+      "primary": "https://ethereum-sepolia-rpc.publicnode.com",
+      "secondary": "https://sepolia.rpc.thirdweb.com"
+    },
+    "chainId": "11155111",
+    "block": {
+      "number": "11708585",
+      "hash": "0x2e8b4b2d6e7f463e2469d5149e67d97ed718800b9e8f3eb6894113e8c5eb181c",
+      "timestamp": "1789459236",
+      "baseFeePerGas": "1014866990"
+    },
+    "secondaryBlockHashAgreed": true,
+    "codeSha256": {
+      "executor": "830b7ced51f21b357e415ac325b5bf69fe717224175e10f1531d12108cac59e6",
+      "registry": "0542a93962339c2add74b82b4e4792f905b5ef2c02c000cb6e92056ee90b888f",
+      "complianceProvider": "604582dc8d183153d992d78316ec816a3fce6090612bee6d8026b004787a4b62",
+      "token": "846efa39d1689bdcffea1cdabe788d0b6f81050c0667ad6444e722aed27f7e86"
+    },
+    "executorBindings": {
+      "rams": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+      "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "owner": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "recorderRole": true
+    },
+    "tokenDecimals": "6",
+    "state": {
+      "allowance": "0",
+      "principalTokenBalance": "20000000",
+      "recipientTokenBalance": "3100",
+      "mandate": null,
+      "actionEnabled": false,
+      "agentFrozen": false,
+      "executorAction": {
+        "supported": false,
+        "hasAmount": false,
+        "amountIndex": 0
+      }
+    },
+    "balancesWei": {
+      "owner": "50000000000000000",
+      "agent": "170559370000000000"
+    },
+    "nonces": {
+      "owner": {
+        "latest": "0",
+        "pending": "0"
+      },
+      "agent": {
+        "latest": "0",
+        "pending": "0"
+      }
+    },
+    "suggestedPriorityFeePerGas": "1000000",
+    "fees": {
+      "maxPriorityFeePerGas": "1000000000",
+      "maxFeePerGas": "3029733980"
+    },
+    "gasEstimates": {
+      "setAction": "47178",
+      "approve": "56228",
+      "grant": "281611",
+      "approveReset": "35862"
+    },
+    "plannedWrites": [
+      "setAction",
+      "approve",
+      "grant",
+      "execute",
+      "revoke",
+      "approveReset"
+    ],
+    "requiredWei": {
+      "atCurrentFees": {
+        "owner": "2484381863600000",
+        "agent": "908920194000000"
+      },
+      "atApprovedFeeCeiling": {
+        "owner": "24600000000000000",
+        "agent": "9000000000000000"
+      }
+    },
+    "blockers": []
+  },
+  "approvalSha256": "9a2e5ee17d8bed85d30046529acc20f590be2d1bb06b6aa13e71f66228544fcb"
+}

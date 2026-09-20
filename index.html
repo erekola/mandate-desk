@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Mandate Desk lets an owner review an agent's transfer plan, approve it within fixed limits and revoke the mandate. Watch the demo and inspect the Sepolia evidence.">
+  <meta name="color-scheme" content="light">
+  <title>Mandate Desk | Demo and Sepolia evidence</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="bar"><a class="brand" href="#main">Mandate Desk</a><nav aria-label="Main navigation"><a href="#demo">Watch demo</a><a href="#evidence">Sepolia evidence</a><a href="https://github.com/erekola/mandate-desk">Source code</a></nav></header>
+<main id="main">
+  <section class="hero" aria-labelledby="headline">
+    <div><p class="eyebrow">Built with Brickken</p><h1 id="headline">An agent requests.<br>The owner decides.</h1><p class="lead">Review an agent's exact transfer plan, approve it within fixed limits and revoke the mandate when its work is done.</p><p class="hero-note">Mandate Desk separates the owner's approval from the agent's execution. Start with the recorded simulation, then inspect the completed Sepolia run.</p><div class="actions"><a class="button primary" href="#demo">Watch the 2-minute demo</a><a class="button" href="#evidence">Inspect the six transactions</a></div></div>
+    <aside class="flow" aria-label="Example approval flow"><p class="eyebrow">Inside the recorded simulation</p><ol><li><span>Agent request</span><strong>Transfer 30 MDT</strong><small>Synthetic tokens in a local ledger</small></li><li><span>Owner review</span><strong>Exact plan, fixed limits</strong><small>60 MDT per transfer, 100 MDT total</small></li><li><span>Execution</span><strong>Approve once. Check again.</strong><small>A retry returns the existing receipt</small></li></ol></aside>
+  </section>
+  <section id="demo" class="section" aria-labelledby="demo-title">
+    <div class="section-heading"><div><p class="eyebrow">01 / Recorded walkthrough</p><h2 id="demo-title">See the approval boundary in use.</h2></div><span class="tag">Local simulation</span></div>
+    <p class="intro">The recording uses synthetic MDT with no monetary value. It shows the original local app. This page plays the recording and sends no blockchain transactions.</p>
+    <div class="demo-grid"><div class="player"><video id="walkthrough" controls playsinline preload="metadata" aria-label="Recorded Mandate Desk simulation"><source src="media/demo.mp4" type="video/mp4"><track kind="captions" src="media/captions.vtt" srclang="en" label="English"><a href="media/demo.mp4">Download the demo video</a></video><div class="video-footer"><span>2 min 12 sec · English captions</span><a href="media/transcript.txt">Read the transcript</a></div></div>
+    <div class="chapters"><h3>Choose a moment</h3><p>Each button pauses the video at that step.</p><div id="chapter-buttons" hidden><button data-time="26"><span>00:26</span>Review the exact plan</button><button data-time="44"><span>00:44</span>Approve a transfer</button><button data-time="60"><span>01:00</span>Retry without a second transfer</button><button data-time="75"><span>01:15</span>Deny an oversized request</button><button data-time="88"><span>01:28</span>Check the remaining budget</button><button data-time="104"><span>01:44</span>Revoke the mandate</button></div><noscript><p>Use the video controls to move through the recording.</p></noscript></div></div>
+    <details class="boundary"><summary>What the simulation demonstrates</summary><p>The local app checks recipient policy, the approved plan and mandate limits before changing its ledger. Its recipient checks are local policy. They are not evidence that the RAMS contract restricts recipients. The Sepolia observations below have their own evidence and scope.</p></details>
+  </section>
+  <section id="evidence" class="section" aria-labelledby="evidence-title">
+    <div class="section-heading"><div><p class="eyebrow">02 / Completed testnet run</p><h2 id="evidence-title">Follow the Sepolia transaction trail.</h2></div><span class="tag">15 September 2026</span></div>
+    <p class="intro">The saved run contains four Brickken RAMS writes and two ERC-20 approvals through Sepolia RPC. Open each transaction on Etherscan or read the original evidence files.</p>
+    <div class="table-wrap"><table><caption>Six transactions from the completed run</caption><thead><tr><th scope="col">Step</th><th scope="col">Signer</th><th scope="col">Route</th><th scope="col">Transaction</th></tr></thead><tbody id="transactions">
+<tr><th scope="row">Enable transfer action</th><td>Owner</td><td>Brickken RAMS</td><td><a href="https://sepolia.etherscan.io/tx/0x4030808d2aa11840bca24d41ce09e2b8564b6c3d771a9619496ee5b843ae9a24" aria-label="Enable transfer action: view transaction on Etherscan">0x4030808d</a></td></tr>
+<tr><th scope="row">Approve token allowance</th><td>Owner</td><td>Sepolia RPC</td><td><a href="https://sepolia.etherscan.io/tx/0x4f41eab8efaadeca4b0d52dd3140f5de750615a4a77f003588174127cf2cfc8e" aria-label="Approve token allowance: view transaction on Etherscan">0x4f41eab8</a></td></tr>
+<tr><th scope="row">Grant mandate</th><td>Owner</td><td>Brickken RAMS</td><td><a href="https://sepolia.etherscan.io/tx/0xde8b76804660bdd805fa3e640c73b48a5ff95162ff9cecb4af089c6afe8d553b" aria-label="Grant mandate: view transaction on Etherscan">0xde8b7680</a></td></tr>
+<tr><th scope="row">Execute approved transfer</th><td>Agent</td><td>Brickken RAMS</td><td><a href="https://sepolia.etherscan.io/tx/0x546917db7f393947d4a0b9d7ddef08b7f304fbfb2eb160cb0ec1cd0178228139" aria-label="Execute approved transfer: view transaction on Etherscan">0x546917db</a></td></tr>
+<tr><th scope="row">Revoke mandate</th><td>Owner</td><td>Brickken RAMS</td><td><a href="https://sepolia.etherscan.io/tx/0x37fc339467256be4bfb4b22ba60ecf681c98990cb871c1d810e281d8968414b5" aria-label="Revoke mandate: view transaction on Etherscan">0x37fc3394</a></td></tr>
+<tr><th scope="row">Reset allowance to zero</th><td>Owner</td><td>Sepolia RPC</td><td><a href="https://sepolia.etherscan.io/tx/0x0de6edf857bc6f04c32f1da99df2aff227c5336212f47828eaa08da9ffe2e6be" aria-label="Reset allowance to zero: view transaction on Etherscan">0x0de6edf8</a></td></tr>
+    </tbody></table></div>
+    <div class="proof-grid"><article><h3>Limits and revocation</h3><p>Four saved control observations include cap checks and calls before and after revocation. These are eth_call observations at recorded blocks. They are not failed transactions.</p><a href="evidence/controls/control-after-revoke.json">Read the after-revocation observation</a></article><article><h3>Replay handling</h3><p>The saved replay observation reports no new agent transaction. The agent nonce stayed unchanged during that observation.</p><a href="evidence/replays/replay-1.json">Read the replay observation</a></article><article><h3>Finality</h3><p>The saved finality check reports all run blocks finalized on both read sources at 12:12 UTC on 15 September 2026. This page does not recheck the chain.</p><a href="evidence/finality.json">Read the finality record</a></article></div>
+    <details class="boundary"><summary>Run scope and disclosed deviation</summary><p>The final cleanup step used a fetch throttle preload in the owner server process that was outside the run's recorded code identity. One read source recovered from stale finality reporting before the complete export was produced. Later source fixes are a separate revision and do not change this run's approval or code identity.</p><p>These records describe one Ethereum Sepolia testnet run. They do not establish production security or general guarantees for every request.</p><a href="https://github.com/erekola/mandate-desk#readme">Read the repository disclosure</a></details>
+    <div class="evidence-links"><a class="button" href="evidence/transactions.json">Full transaction record</a><a class="button" href="evidence/SHA256SUMS.json">Evidence file hashes</a><a class="button" href="https://github.com/erekola/mandate-desk/tree/main/verification/sepolia-live-c990e8a178b0">Evidence in the repository</a></div>
+  </section>
+</main>
+<footer><div><strong>Mandate Desk</strong><p>A browser presentation of the existing demo and saved run evidence. Prepared on 20 September 2026.</p><p>Substantial implementation code was generated with AI tools. See the repository for the development record and disclosures.</p></div><a href="https://github.com/erekola/mandate-desk">Explore the source</a></footer>
+</body>
+</html>

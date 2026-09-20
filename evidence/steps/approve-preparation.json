@@ -1,0 +1,27 @@
+{
+  "operationId": "live_c990e8a178b04a35835d8fe92097c20f_approve",
+  "step": "approve",
+  "route": "sepolia-rpc",
+  "apiTxId": null,
+  "preparationHash": "6312e900c406131916b8bd93ccd230c28e3e882532bd72e17d43e49f0c54b9a6",
+  "transaction": {
+    "chainId": "11155111",
+    "from": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+    "to": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+    "value": "0",
+    "data": "0x095ea7b3000000000000000000000000ff666ccd01541cd7abcabb70dba1cffec8c01d9b0000000000000000000000000000000000000000000000000000000000003a98",
+    "nonce": "1",
+    "gasLimit": "70285",
+    "type": 2,
+    "maxPriorityFeePerGas": "1000000000",
+    "maxFeePerGas": "3112647074"
+  },
+  "gasEstimate": "56228",
+  "preparedAt": "2026-09-15T08:04:00.939Z",
+  "observedBlock": {
+    "number": "11708600",
+    "hash": "0x06cdf96aa4d74a300f63d7fc1aca7cf2fcec16f013704bcc6b7ca65508073eeb",
+    "baseFeePerGas": "1056323537"
+  },
+  "x402Quote": null
+}

@@ -1,0 +1,34 @@
+{
+  "operationId": "live_c990e8a178b04a35835d8fe92097c20f_revoke",
+  "step": "revoke",
+  "receipt": {
+    "transactionHash": "0x37fc339467256be4bfb4b22ba60ecf681c98990cb871c1d810e281d8968414b5",
+    "status": 1,
+    "from": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+    "to": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+    "blockNumber": "11708618",
+    "blockHash": "0xf77963514b6a3fd578ace695ace9ad7b2437667be60ae949b4b9b040b9952481",
+    "gasUsed": "32857",
+    "effectiveGasPrice": "1059466316",
+    "logs": [
+      {
+        "address": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+        "topics": [
+          "0x1f38774437a6ad21407eb7409f803938005636221a15641c63dea2d13aacbbd6",
+          "0x00000000000000000000000018ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "0x0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d4"
+        ],
+        "data": "0x0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+        "transactionHash": "0x37fc339467256be4bfb4b22ba60ecf681c98990cb871c1d810e281d8968414b5",
+        "blockNumber": "11708618",
+        "blockHash": "0xf77963514b6a3fd578ace695ace9ad7b2437667be60ae949b4b9b040b9952481",
+        "logIndex": "243",
+        "removed": false
+      }
+    ]
+  },
+  "secondaryBlockHash": "0xf77963514b6a3fd578ace695ace9ad7b2437667be60ae949b4b9b040b9952481",
+  "confirmations": 2,
+  "confirmationsPrimary": 2,
+  "confirmationsSecondary": 2
+}

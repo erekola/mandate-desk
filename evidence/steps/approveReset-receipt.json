@@ -1,0 +1,34 @@
+{
+  "operationId": "live_c990e8a178b04a35835d8fe92097c20f_approveReset",
+  "step": "approveReset",
+  "receipt": {
+    "transactionHash": "0x0de6edf857bc6f04c32f1da99df2aff227c5336212f47828eaa08da9ffe2e6be",
+    "status": 1,
+    "from": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+    "to": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+    "blockNumber": "11708714",
+    "blockHash": "0xe935418d3457e838f719db44d2802be18eac9034fc82739422b98ad7d29f14eb",
+    "gasUsed": "33501",
+    "effectiveGasPrice": "2072904629",
+    "logs": [
+      {
+        "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "topics": [
+          "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+          "0x0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+          "0x000000000000000000000000ff666ccd01541cd7abcabb70dba1cffec8c01d9b"
+        ],
+        "data": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "transactionHash": "0x0de6edf857bc6f04c32f1da99df2aff227c5336212f47828eaa08da9ffe2e6be",
+        "blockNumber": "11708714",
+        "blockHash": "0xe935418d3457e838f719db44d2802be18eac9034fc82739422b98ad7d29f14eb",
+        "logIndex": "23",
+        "removed": false
+      }
+    ]
+  },
+  "secondaryBlockHash": "0xe935418d3457e838f719db44d2802be18eac9034fc82739422b98ad7d29f14eb",
+  "confirmations": 2,
+  "confirmationsPrimary": 2,
+  "confirmationsSecondary": 2
+}

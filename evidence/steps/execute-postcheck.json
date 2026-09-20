@@ -1,0 +1,262 @@
+{
+  "operationId": "live_c990e8a178b04a35835d8fe92097c20f_execute",
+  "step": "execute",
+  "envelope": {
+    "schemaVersion": 1,
+    "operationKind": "execute",
+    "expected": {
+      "transaction": {
+        "hash": "0x546917db7f393947d4a0b9d7ddef08b7f304fbfb2eb160cb0ec1cd0178228139",
+        "chainId": "11155111",
+        "from": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+        "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+        "value": "0",
+        "data": "0x1cff79cd0000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c72380000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006423b872dd0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d40000000000000000000000008888888888888888888888888888888888888888000000000000000000000000000000000000000000000000000000000000271000000000000000000000000000000000000000000000000000000000",
+        "nonce": "0",
+        "type": 2,
+        "gasLimit": "142602",
+        "maxPriorityFeePerGas": "1150000",
+        "maxFeePerGas": "1188075870"
+      },
+      "semantics": {
+        "registry": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+        "executor": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+        "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+        "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+        "recipient": "0x8888888888888888888888888888888888888888",
+        "action": "0x23b872dd00000000000000000000000000000000000000000000000000000000",
+        "amount": "10000",
+        "maxTransactionValue": "10000",
+        "maxCumulativeValue": "15000",
+        "canExecuteAfter": false
+      }
+    },
+    "transaction": {
+      "hash": "0x546917db7f393947d4a0b9d7ddef08b7f304fbfb2eb160cb0ec1cd0178228139",
+      "from": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+      "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+      "nonce": "0",
+      "value": "0",
+      "data": "0x1cff79cd0000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c72380000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006423b872dd0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d40000000000000000000000008888888888888888888888888888888888888888000000000000000000000000000000000000000000000000000000000000271000000000000000000000000000000000000000000000000000000000",
+      "type": 2,
+      "chainId": "11155111",
+      "gasLimit": "142602",
+      "maxFeePerGas": "1188075870",
+      "maxPriorityFeePerGas": "1150000",
+      "blockNumber": "11708611",
+      "blockHash": "0x3b36b851080a33c28898c91da11bc9f587ebb85a00c4d3573a314f8cb467eff6"
+    },
+    "receipt": {
+      "transactionHash": "0x546917db7f393947d4a0b9d7ddef08b7f304fbfb2eb160cb0ec1cd0178228139",
+      "status": 1,
+      "from": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+      "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+      "blockNumber": "11708611",
+      "blockHash": "0x3b36b851080a33c28898c91da11bc9f587ebb85a00c4d3573a314f8cb467eff6",
+      "logs": [
+        {
+          "address": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+          "topics": [
+            "0x9965291c5f1e655978720fae88e659c3ca252225e140537d71d73f171957c286",
+            "0x00000000000000000000000018ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+            "0x0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+            "0x23b872dd00000000000000000000000000000000000000000000000000000000"
+          ],
+          "data": "0x00000000000000000000000000000000000000000000000000000000000027100000000000000000000000000000000000000000000000000000000000002710",
+          "transactionHash": "0x546917db7f393947d4a0b9d7ddef08b7f304fbfb2eb160cb0ec1cd0178228139",
+          "blockNumber": "11708611",
+          "blockHash": "0x3b36b851080a33c28898c91da11bc9f587ebb85a00c4d3573a314f8cb467eff6",
+          "logIndex": "87",
+          "removed": false
+        },
+        {
+          "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+            "0x0000000000000000000000008888888888888888888888888888888888888888"
+          ],
+          "data": "0x0000000000000000000000000000000000000000000000000000000000002710",
+          "transactionHash": "0x546917db7f393947d4a0b9d7ddef08b7f304fbfb2eb160cb0ec1cd0178228139",
+          "blockNumber": "11708611",
+          "blockHash": "0x3b36b851080a33c28898c91da11bc9f587ebb85a00c4d3573a314f8cb467eff6",
+          "logIndex": "88",
+          "removed": false
+        }
+      ]
+    },
+    "before": {
+      "blockNumber": "11708610",
+      "blockHash": "0x82ecf97f2799612c57e8ac08da0772535988160ed1ff21abc76195f8239a1753",
+      "state": {
+        "principalBalance": "20000000",
+        "recipientBalance": "3100",
+        "allowance": "15000",
+        "mandate": {
+          "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "validFrom": "1789459464",
+          "validUntil": "1789463064",
+          "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+          "revoked": false,
+          "complianceProvider": "0xa90d2503d5d9b80ecc27856ff76f892b8c02f278",
+          "identityRef": "0x6cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f7633",
+          "asset": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "maxTransactionValue": "10000",
+          "maxCumulativeValue": "15000",
+          "cumulativeUsed": "0",
+          "metadata": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "canExecute": true
+      }
+    },
+    "after": {
+      "blockNumber": "11708611",
+      "blockHash": "0x3b36b851080a33c28898c91da11bc9f587ebb85a00c4d3573a314f8cb467eff6",
+      "state": {
+        "principalBalance": "19990000",
+        "recipientBalance": "13100",
+        "allowance": "5000",
+        "mandate": {
+          "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "validFrom": "1789459464",
+          "validUntil": "1789463064",
+          "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+          "revoked": false,
+          "complianceProvider": "0xa90d2503d5d9b80ecc27856ff76f892b8c02f278",
+          "identityRef": "0x6cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f7633",
+          "asset": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "maxTransactionValue": "10000",
+          "maxCumulativeValue": "15000",
+          "cumulativeUsed": "10000",
+          "metadata": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "canExecute": false
+      }
+    },
+    "observedAt": "2026-09-15T08:06:24.441Z"
+  },
+  "report": {
+    "schemaVersion": 1,
+    "kind": "brickken-semantic-postcheck",
+    "operationKind": "execute",
+    "transactionHash": "0x546917db7f393947d4a0b9d7ddef08b7f304fbfb2eb160cb0ec1cd0178228139",
+    "blockNumber": "11708611",
+    "blockHash": "0x3b36b851080a33c28898c91da11bc9f587ebb85a00c4d3573a314f8cb467eff6",
+    "verified": true,
+    "checks": [
+      "exact-transaction",
+      "receipt-block-identity",
+      "transfer-event",
+      "execution-recorded-event",
+      "balance-deltas",
+      "allowance-delta",
+      "cumulative-delta"
+    ],
+    "scope": {
+      "normalizedFixtureInputOnly": false,
+      "blockBoundRpcObservation": true,
+      "abiSourceMatched": true,
+      "rpcAuthenticityVerified": false,
+      "independentRpcVerified": false,
+      "confirmationDepthVerified": false
+    },
+    "observedAt": "2026-09-15T08:06:24.441Z"
+  },
+  "twoSourceObservation": {
+    "parentBlock": {
+      "number": "11708610",
+      "hash": "0x82ecf97f2799612c57e8ac08da0772535988160ed1ff21abc76195f8239a1753"
+    },
+    "receiptBlock": {
+      "number": "11708611",
+      "hash": "0x3b36b851080a33c28898c91da11bc9f587ebb85a00c4d3573a314f8cb467eff6"
+    },
+    "before": {
+      "primary": {
+        "principalBalance": "20000000",
+        "recipientBalance": "3100",
+        "allowance": "15000",
+        "mandate": {
+          "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "validFrom": "1789459464",
+          "validUntil": "1789463064",
+          "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+          "revoked": false,
+          "complianceProvider": "0xa90d2503d5d9b80ecc27856ff76f892b8c02f278",
+          "identityRef": "0x6cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f7633",
+          "asset": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "maxTransactionValue": "10000",
+          "maxCumulativeValue": "15000",
+          "cumulativeUsed": "0",
+          "metadata": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "canExecute": true
+      },
+      "secondary": {
+        "principalBalance": "20000000",
+        "recipientBalance": "3100",
+        "allowance": "15000",
+        "mandate": {
+          "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "validFrom": "1789459464",
+          "validUntil": "1789463064",
+          "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+          "revoked": false,
+          "complianceProvider": "0xa90d2503d5d9b80ecc27856ff76f892b8c02f278",
+          "identityRef": "0x6cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f7633",
+          "asset": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "maxTransactionValue": "10000",
+          "maxCumulativeValue": "15000",
+          "cumulativeUsed": "0",
+          "metadata": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "canExecute": true
+      },
+      "agreed": true
+    },
+    "after": {
+      "primary": {
+        "principalBalance": "19990000",
+        "recipientBalance": "13100",
+        "allowance": "5000",
+        "mandate": {
+          "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "validFrom": "1789459464",
+          "validUntil": "1789463064",
+          "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+          "revoked": false,
+          "complianceProvider": "0xa90d2503d5d9b80ecc27856ff76f892b8c02f278",
+          "identityRef": "0x6cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f7633",
+          "asset": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "maxTransactionValue": "10000",
+          "maxCumulativeValue": "15000",
+          "cumulativeUsed": "10000",
+          "metadata": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "canExecute": false
+      },
+      "secondary": {
+        "principalBalance": "19990000",
+        "recipientBalance": "13100",
+        "allowance": "5000",
+        "mandate": {
+          "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "validFrom": "1789459464",
+          "validUntil": "1789463064",
+          "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+          "revoked": false,
+          "complianceProvider": "0xa90d2503d5d9b80ecc27856ff76f892b8c02f278",
+          "identityRef": "0x6cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f7633",
+          "asset": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "maxTransactionValue": "10000",
+          "maxCumulativeValue": "15000",
+          "cumulativeUsed": "10000",
+          "metadata": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "canExecute": false
+      },
+      "agreed": true
+    }
+  }
+}

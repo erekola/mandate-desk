@@ -1,0 +1,20 @@
+{
+  "observedAt": "2026-09-15T12:23:22.626Z",
+  "operationId": "live_c990e8a178b04a35835d8fe92097c20f_execute",
+  "block": {
+    "number": "11709845",
+    "hash": "0xe14e4555906621302ad9ecd05e49df2e8037f9abf489df51a0e75856bce6d979"
+  },
+  "journalState": "semantically_verified",
+  "transactionHash": "0x546917db7f393947d4a0b9d7ddef08b7f304fbfb2eb160cb0ec1cd0178228139",
+  "agentNonce": "1",
+  "expectedAgentNonce": "1",
+  "newAgentTransaction": false,
+  "principalTokenBalance": "19990000",
+  "principalBalanceAfterExecute": "19990000",
+  "recipientTokenBalance": "13100",
+  "recipientBalanceAfterExecute": "13100",
+  "signed": false,
+  "broadcast": false,
+  "passed": true
+}

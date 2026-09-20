@@ -1,0 +1,135 @@
+{
+  "operationId": "live_c990e8a178b04a35835d8fe92097c20f_approve",
+  "step": "approve",
+  "envelope": {
+    "schemaVersion": 1,
+    "operationKind": "approve",
+    "expected": {
+      "transaction": {
+        "hash": "0x4f41eab8efaadeca4b0d52dd3140f5de750615a4a77f003588174127cf2cfc8e",
+        "chainId": "11155111",
+        "from": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+        "to": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "value": "0",
+        "data": "0x095ea7b3000000000000000000000000ff666ccd01541cd7abcabb70dba1cffec8c01d9b0000000000000000000000000000000000000000000000000000000000003a98",
+        "nonce": "1",
+        "type": 2,
+        "gasLimit": "70285",
+        "maxPriorityFeePerGas": "1000000000",
+        "maxFeePerGas": "3112647074"
+      },
+      "semantics": {
+        "token": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "owner": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+        "spender": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+        "amount": "15000"
+      }
+    },
+    "transaction": {
+      "hash": "0x4f41eab8efaadeca4b0d52dd3140f5de750615a4a77f003588174127cf2cfc8e",
+      "from": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "to": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "nonce": "1",
+      "value": "0",
+      "data": "0x095ea7b3000000000000000000000000ff666ccd01541cd7abcabb70dba1cffec8c01d9b0000000000000000000000000000000000000000000000000000000000003a98",
+      "type": 2,
+      "chainId": "11155111",
+      "gasLimit": "70285",
+      "maxFeePerGas": "3112647074",
+      "maxPriorityFeePerGas": "1000000000",
+      "blockNumber": "11708602",
+      "blockHash": "0x3a52dfda7d8a2b2809a792fbec032f205477dfbc2cc5737516fb844101ce08e2"
+    },
+    "receipt": {
+      "transactionHash": "0x4f41eab8efaadeca4b0d52dd3140f5de750615a4a77f003588174127cf2cfc8e",
+      "status": 1,
+      "from": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "to": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "blockNumber": "11708602",
+      "blockHash": "0x3a52dfda7d8a2b2809a792fbec032f205477dfbc2cc5737516fb844101ce08e2",
+      "logs": [
+        {
+          "address": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "topics": [
+            "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+            "0x0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+            "0x000000000000000000000000ff666ccd01541cd7abcabb70dba1cffec8c01d9b"
+          ],
+          "data": "0x0000000000000000000000000000000000000000000000000000000000003a98",
+          "transactionHash": "0x4f41eab8efaadeca4b0d52dd3140f5de750615a4a77f003588174127cf2cfc8e",
+          "blockNumber": "11708602",
+          "blockHash": "0x3a52dfda7d8a2b2809a792fbec032f205477dfbc2cc5737516fb844101ce08e2",
+          "logIndex": "90",
+          "removed": false
+        }
+      ]
+    },
+    "before": {
+      "blockNumber": "11708601",
+      "blockHash": "0x6a9d1e2f2129783814b0d97f84220b2e0a71543d7071df1cb6f43ce4726333a3",
+      "state": {
+        "allowance": "0"
+      }
+    },
+    "after": {
+      "blockNumber": "11708602",
+      "blockHash": "0x3a52dfda7d8a2b2809a792fbec032f205477dfbc2cc5737516fb844101ce08e2",
+      "state": {
+        "allowance": "15000"
+      }
+    },
+    "observedAt": "2026-09-15T08:04:30.629Z"
+  },
+  "report": {
+    "schemaVersion": 1,
+    "kind": "brickken-semantic-postcheck",
+    "operationKind": "approve",
+    "transactionHash": "0x4f41eab8efaadeca4b0d52dd3140f5de750615a4a77f003588174127cf2cfc8e",
+    "blockNumber": "11708602",
+    "blockHash": "0x3a52dfda7d8a2b2809a792fbec032f205477dfbc2cc5737516fb844101ce08e2",
+    "verified": true,
+    "checks": [
+      "exact-transaction",
+      "receipt-block-identity",
+      "approval-event",
+      "allowance:0->15000"
+    ],
+    "scope": {
+      "normalizedFixtureInputOnly": false,
+      "blockBoundRpcObservation": true,
+      "abiSourceMatched": true,
+      "rpcAuthenticityVerified": false,
+      "independentRpcVerified": false,
+      "confirmationDepthVerified": false
+    },
+    "observedAt": "2026-09-15T08:04:30.629Z"
+  },
+  "twoSourceObservation": {
+    "parentBlock": {
+      "number": "11708601",
+      "hash": "0x6a9d1e2f2129783814b0d97f84220b2e0a71543d7071df1cb6f43ce4726333a3"
+    },
+    "receiptBlock": {
+      "number": "11708602",
+      "hash": "0x3a52dfda7d8a2b2809a792fbec032f205477dfbc2cc5737516fb844101ce08e2"
+    },
+    "before": {
+      "primary": {
+        "allowance": "0"
+      },
+      "secondary": {
+        "allowance": "0"
+      },
+      "agreed": true
+    },
+    "after": {
+      "primary": {
+        "allowance": "15000"
+      },
+      "secondary": {
+        "allowance": "15000"
+      },
+      "agreed": true
+    }
+  }
+}

@@ -1,0 +1,145 @@
+{
+  "operationId": "live_c990e8a178b04a35835d8fe92097c20f_setAction",
+  "step": "setAction",
+  "envelope": {
+    "schemaVersion": 1,
+    "operationKind": "setAction",
+    "expected": {
+      "transaction": {
+        "hash": "0x4030808d2aa11840bca24d41ce09e2b8564b6c3d771a9619496ee5b843ae9a24",
+        "chainId": "11155111",
+        "from": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+        "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+        "value": "0",
+        "data": "0xa4a2285423b872dd00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+        "nonce": "0",
+        "type": 2,
+        "gasLimit": "56613",
+        "maxPriorityFeePerGas": "1150000",
+        "maxFeePerGas": "1271590716"
+      },
+      "semantics": {
+        "executor": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+        "owner": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+        "selector": "0x23b872dd",
+        "supported": true,
+        "hasAmount": true,
+        "amountIndex": 2
+      }
+    },
+    "transaction": {
+      "hash": "0x4030808d2aa11840bca24d41ce09e2b8564b6c3d771a9619496ee5b843ae9a24",
+      "from": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+      "nonce": "0",
+      "value": "0",
+      "data": "0xa4a2285423b872dd00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+      "type": 2,
+      "chainId": "11155111",
+      "gasLimit": "56613",
+      "maxFeePerGas": "1271590716",
+      "maxPriorityFeePerGas": "1150000",
+      "blockNumber": "11708599",
+      "blockHash": "0x80603e00854080807a78cdfbfcc2a8afa0180bd0603dffed377b63388d826c79"
+    },
+    "receipt": {
+      "transactionHash": "0x4030808d2aa11840bca24d41ce09e2b8564b6c3d771a9619496ee5b843ae9a24",
+      "status": 1,
+      "from": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+      "blockNumber": "11708599",
+      "blockHash": "0x80603e00854080807a78cdfbfcc2a8afa0180bd0603dffed377b63388d826c79",
+      "logs": []
+    },
+    "before": {
+      "blockNumber": "11708598",
+      "blockHash": "0x808567b3b763aed650fa19c721e248e18edac0c011c6da7e7c599bc850c9d05b",
+      "state": {
+        "action": {
+          "supported": false,
+          "hasAmount": false,
+          "amountIndex": 0
+        }
+      }
+    },
+    "after": {
+      "blockNumber": "11708599",
+      "blockHash": "0x80603e00854080807a78cdfbfcc2a8afa0180bd0603dffed377b63388d826c79",
+      "state": {
+        "action": {
+          "supported": true,
+          "hasAmount": true,
+          "amountIndex": 2
+        }
+      }
+    },
+    "observedAt": "2026-09-15T08:03:59.824Z"
+  },
+  "report": {
+    "schemaVersion": 1,
+    "kind": "brickken-semantic-postcheck",
+    "operationKind": "setAction",
+    "transactionHash": "0x4030808d2aa11840bca24d41ce09e2b8564b6c3d771a9619496ee5b843ae9a24",
+    "blockNumber": "11708599",
+    "blockHash": "0x80603e00854080807a78cdfbfcc2a8afa0180bd0603dffed377b63388d826c79",
+    "verified": true,
+    "checks": [
+      "exact-transaction",
+      "receipt-block-identity",
+      "action-state-transition"
+    ],
+    "scope": {
+      "normalizedFixtureInputOnly": false,
+      "blockBoundRpcObservation": true,
+      "abiSourceMatched": true,
+      "rpcAuthenticityVerified": false,
+      "independentRpcVerified": false,
+      "confirmationDepthVerified": false
+    },
+    "observedAt": "2026-09-15T08:03:59.824Z"
+  },
+  "twoSourceObservation": {
+    "parentBlock": {
+      "number": "11708598",
+      "hash": "0x808567b3b763aed650fa19c721e248e18edac0c011c6da7e7c599bc850c9d05b"
+    },
+    "receiptBlock": {
+      "number": "11708599",
+      "hash": "0x80603e00854080807a78cdfbfcc2a8afa0180bd0603dffed377b63388d826c79"
+    },
+    "before": {
+      "primary": {
+        "action": {
+          "supported": false,
+          "hasAmount": false,
+          "amountIndex": 0
+        }
+      },
+      "secondary": {
+        "action": {
+          "supported": false,
+          "hasAmount": false,
+          "amountIndex": 0
+        }
+      },
+      "agreed": true
+    },
+    "after": {
+      "primary": {
+        "action": {
+          "supported": true,
+          "hasAmount": true,
+          "amountIndex": 2
+        }
+      },
+      "secondary": {
+        "action": {
+          "supported": true,
+          "hasAmount": true,
+          "amountIndex": 2
+        }
+      },
+      "agreed": true
+    }
+  }
+}

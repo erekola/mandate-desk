@@ -1,0 +1,204 @@
+{
+  "operationId": "live_c990e8a178b04a35835d8fe92097c20f_grant",
+  "step": "grant",
+  "envelope": {
+    "schemaVersion": 1,
+    "operationKind": "grant",
+    "expected": {
+      "transaction": {
+        "hash": "0xde8b76804660bdd805fa3e640c73b48a5ff95162ff9cecb4af089c6afe8d553b",
+        "chainId": "11155111",
+        "from": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+        "to": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+        "value": "0",
+        "data": "0xc6a4ad000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000020000000000000000000000000018ff8b19e9e9cc35c7f10b1c690bb84d56cc9442000000000000000000000000000000000000000000000000000000006aa8fc08000000000000000000000000000000000000000000000000000000006aa90a180000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d4000000000000000000000000a90d2503d5d9b80ecc27856ff76f892b8c02f2786cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f76330000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c723800000000000000000000000000000000000000000000000000000000000027100000000000000000000000000000000000000000000000000000000000003a98000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000123b872dd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "nonce": "2",
+        "type": 2,
+        "gasLimit": "337933",
+        "maxPriorityFeePerGas": "1150000",
+        "maxFeePerGas": "1120853904"
+      },
+      "semantics": {
+        "registry": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+        "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+        "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+        "complianceProvider": "0xa90d2503d5d9b80ecc27856ff76f892b8c02f278",
+        "asset": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+        "validFrom": "1789459464",
+        "validUntil": "1789463064",
+        "identityRef": "0x6cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f7633",
+        "metadata": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "action": "0x23b872dd00000000000000000000000000000000000000000000000000000000",
+        "maxTransactionValue": "10000",
+        "maxCumulativeValue": "15000"
+      }
+    },
+    "transaction": {
+      "hash": "0xde8b76804660bdd805fa3e640c73b48a5ff95162ff9cecb4af089c6afe8d553b",
+      "from": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "to": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+      "nonce": "2",
+      "value": "0",
+      "data": "0xc6a4ad000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000020000000000000000000000000018ff8b19e9e9cc35c7f10b1c690bb84d56cc9442000000000000000000000000000000000000000000000000000000006aa8fc08000000000000000000000000000000000000000000000000000000006aa90a180000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d4000000000000000000000000a90d2503d5d9b80ecc27856ff76f892b8c02f2786cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f76330000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c723800000000000000000000000000000000000000000000000000000000000027100000000000000000000000000000000000000000000000000000000000003a98000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000123b872dd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "type": 2,
+      "chainId": "11155111",
+      "gasLimit": "337933",
+      "maxFeePerGas": "1120853904",
+      "maxPriorityFeePerGas": "1150000",
+      "blockNumber": "11708605",
+      "blockHash": "0x5f16ae19574052e845c1a080f895d58da3e74d8e514c5c8861f90d3ea62ce336"
+    },
+    "receipt": {
+      "transactionHash": "0xde8b76804660bdd805fa3e640c73b48a5ff95162ff9cecb4af089c6afe8d553b",
+      "status": 1,
+      "from": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "to": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+      "blockNumber": "11708605",
+      "blockHash": "0x5f16ae19574052e845c1a080f895d58da3e74d8e514c5c8861f90d3ea62ce336",
+      "logs": [
+        {
+          "address": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+          "topics": [
+            "0xa720148a55b2de704c883b2621c396494982d2fa5d5d0eb46b1edf895fe3ab83",
+            "0x00000000000000000000000018ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+            "0x0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d4"
+          ],
+          "data": "0x000000000000000000000000a90d2503d5d9b80ecc27856ff76f892b8c02f2780000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c7238000000000000000000000000000000000000000000000000000000006aa8fc08000000000000000000000000000000000000000000000000000000006aa90a180000000000000000000000000000000000000000000000000000000000000000",
+          "transactionHash": "0xde8b76804660bdd805fa3e640c73b48a5ff95162ff9cecb4af089c6afe8d553b",
+          "blockNumber": "11708605",
+          "blockHash": "0x5f16ae19574052e845c1a080f895d58da3e74d8e514c5c8861f90d3ea62ce336",
+          "logIndex": "108",
+          "removed": false
+        },
+        {
+          "address": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+          "topics": [
+            "0x316f74c6786cc19120fec870fcd1b65bbbd870b16d68279ae2c078d6d841489c",
+            "0x00000000000000000000000018ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+            "0x0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+            "0x23b872dd00000000000000000000000000000000000000000000000000000000"
+          ],
+          "data": "0x",
+          "transactionHash": "0xde8b76804660bdd805fa3e640c73b48a5ff95162ff9cecb4af089c6afe8d553b",
+          "blockNumber": "11708605",
+          "blockHash": "0x5f16ae19574052e845c1a080f895d58da3e74d8e514c5c8861f90d3ea62ce336",
+          "logIndex": "109",
+          "removed": false
+        }
+      ]
+    },
+    "before": {
+      "blockNumber": "11708604",
+      "blockHash": "0x806cf19b665db8a3f45d80964da70aba613e1f359e35e9f94fd9df6dfda53f38",
+      "state": {
+        "mandate": null,
+        "actionEnabled": false
+      }
+    },
+    "after": {
+      "blockNumber": "11708605",
+      "blockHash": "0x5f16ae19574052e845c1a080f895d58da3e74d8e514c5c8861f90d3ea62ce336",
+      "state": {
+        "mandate": {
+          "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "validFrom": "1789459464",
+          "validUntil": "1789463064",
+          "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+          "revoked": false,
+          "complianceProvider": "0xa90d2503d5d9b80ecc27856ff76f892b8c02f278",
+          "identityRef": "0x6cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f7633",
+          "asset": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "maxTransactionValue": "10000",
+          "maxCumulativeValue": "15000",
+          "cumulativeUsed": "0",
+          "metadata": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "actionEnabled": true
+      }
+    },
+    "observedAt": "2026-09-15T08:05:06.599Z"
+  },
+  "report": {
+    "schemaVersion": 1,
+    "kind": "brickken-semantic-postcheck",
+    "operationKind": "grant",
+    "transactionHash": "0xde8b76804660bdd805fa3e640c73b48a5ff95162ff9cecb4af089c6afe8d553b",
+    "blockNumber": "11708605",
+    "blockHash": "0x5f16ae19574052e845c1a080f895d58da3e74d8e514c5c8861f90d3ea62ce336",
+    "verified": true,
+    "checks": [
+      "exact-transaction",
+      "receipt-block-identity",
+      "mandate-granted-event",
+      "action-enabled-event",
+      "mandate-state"
+    ],
+    "scope": {
+      "normalizedFixtureInputOnly": false,
+      "blockBoundRpcObservation": true,
+      "abiSourceMatched": true,
+      "rpcAuthenticityVerified": false,
+      "independentRpcVerified": false,
+      "confirmationDepthVerified": false
+    },
+    "observedAt": "2026-09-15T08:05:06.599Z"
+  },
+  "twoSourceObservation": {
+    "parentBlock": {
+      "number": "11708604",
+      "hash": "0x806cf19b665db8a3f45d80964da70aba613e1f359e35e9f94fd9df6dfda53f38"
+    },
+    "receiptBlock": {
+      "number": "11708605",
+      "hash": "0x5f16ae19574052e845c1a080f895d58da3e74d8e514c5c8861f90d3ea62ce336"
+    },
+    "before": {
+      "primary": {
+        "mandate": null,
+        "actionEnabled": false
+      },
+      "secondary": {
+        "mandate": null,
+        "actionEnabled": false
+      },
+      "agreed": true
+    },
+    "after": {
+      "primary": {
+        "mandate": {
+          "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "validFrom": "1789459464",
+          "validUntil": "1789463064",
+          "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+          "revoked": false,
+          "complianceProvider": "0xa90d2503d5d9b80ecc27856ff76f892b8c02f278",
+          "identityRef": "0x6cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f7633",
+          "asset": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "maxTransactionValue": "10000",
+          "maxCumulativeValue": "15000",
+          "cumulativeUsed": "0",
+          "metadata": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "actionEnabled": true
+      },
+      "secondary": {
+        "mandate": {
+          "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "validFrom": "1789459464",
+          "validUntil": "1789463064",
+          "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+          "revoked": false,
+          "complianceProvider": "0xa90d2503d5d9b80ecc27856ff76f892b8c02f278",
+          "identityRef": "0x6cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f7633",
+          "asset": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "maxTransactionValue": "10000",
+          "maxCumulativeValue": "15000",
+          "cumulativeUsed": "0",
+          "metadata": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "actionEnabled": true
+      },
+      "agreed": true
+    }
+  }
+}

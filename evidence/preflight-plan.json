@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "kind": "mandate-desk-live-preflight",
+  "observedAt": "2026-09-15T08:00:44.990Z",
+  "endpoints": {
+    "primary": "https://ethereum-sepolia-rpc.publicnode.com",
+    "secondary": "https://sepolia.rpc.thirdweb.com"
+  },
+  "chainId": "11155111",
+  "block": {
+    "number": "11708585",
+    "hash": "0x2e8b4b2d6e7f463e2469d5149e67d97ed718800b9e8f3eb6894113e8c5eb181c",
+    "timestamp": "1789459236",
+    "baseFeePerGas": "1014866990"
+  },
+  "secondaryBlockHashAgreed": true,
+  "codeSha256": {
+    "executor": "830b7ced51f21b357e415ac325b5bf69fe717224175e10f1531d12108cac59e6",
+    "registry": "0542a93962339c2add74b82b4e4792f905b5ef2c02c000cb6e92056ee90b888f",
+    "complianceProvider": "604582dc8d183153d992d78316ec816a3fce6090612bee6d8026b004787a4b62",
+    "token": "846efa39d1689bdcffea1cdabe788d0b6f81050c0667ad6444e722aed27f7e86"
+  },
+  "executorBindings": {
+    "rams": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+    "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+    "owner": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+    "recorderRole": true
+  },
+  "tokenDecimals": "6",
+  "state": {
+    "allowance": "0",
+    "principalTokenBalance": "20000000",
+    "recipientTokenBalance": "3100",
+    "mandate": null,
+    "actionEnabled": false,
+    "agentFrozen": false,
+    "executorAction": {
+      "supported": false,
+      "hasAmount": false,
+      "amountIndex": 0
+    }
+  },
+  "balancesWei": {
+    "owner": "50000000000000000",
+    "agent": "170559370000000000"
+  },
+  "nonces": {
+    "owner": {
+      "latest": "0",
+      "pending": "0"
+    },
+    "agent": {
+      "latest": "0",
+      "pending": "0"
+    }
+  },
+  "suggestedPriorityFeePerGas": "1000000",
+  "fees": {
+    "maxPriorityFeePerGas": "1000000000",
+    "maxFeePerGas": "3029733980"
+  },
+  "gasEstimates": {
+    "setAction": "47178",
+    "approve": "56228",
+    "grant": "281611",
+    "approveReset": "35862"
+  },
+  "plannedWrites": [
+    "setAction",
+    "approve",
+    "grant",
+    "execute",
+    "revoke",
+    "approveReset"
+  ],
+  "requiredWei": {
+    "atCurrentFees": {
+      "owner": "2484381863600000",
+      "agent": "908920194000000"
+    },
+    "atApprovedFeeCeiling": {
+      "owner": "24600000000000000",
+      "agent": "9000000000000000"
+    }
+  },
+  "blockers": []
+}

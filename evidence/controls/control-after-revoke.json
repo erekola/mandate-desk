@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "kind": "mandate-desk-live-control",
+  "controlId": "control-after-revoke",
+  "observedAt": "2026-09-15T08:08:16.105Z",
+  "block": {
+    "number": "11708621",
+    "hash": "0x5f0a817be87a83786480e2c09680565bbac197826b8ba1ac0864047c847bda4a",
+    "timestamp": "1789459680"
+  },
+  "broadcast": false,
+  "transactionHash": null,
+  "calls": [
+    {
+      "label": "execute-after-revoke",
+      "from": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+      "to": "0xff666ccd01541cd7abcabb70dba1cffec8c01d9b",
+      "value": "0",
+      "data": "0x1cff79cd0000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c72380000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006423b872dd0000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d4000000000000000000000000888888888888888888888888888888888888888800000000000000000000000000000000000000000000000000000000000009c400000000000000000000000000000000000000000000000000000000",
+      "expect": "revert:CannotExecute",
+      "result": {
+        "ok": false,
+        "revertData": "0x0aae0b0900000000000000000000000018ff8b19e9e9cc35c7f10b1c690bb84d56cc94420000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c723823b872dd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000009c4"
+      },
+      "decodedRevert": {
+        "selector": "0x0aae0b09",
+        "name": "CannotExecute",
+        "args": {
+          "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+          "target": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+          "selector": "0x23b872dd",
+          "amount": "2500"
+        }
+      },
+      "secondaryAgrees": true,
+      "passed": true
+    },
+    {
+      "label": "can-execute-after-revoke",
+      "from": null,
+      "to": "0xd68e1bb972ca4ef7f5764fbf6d685a6dfc26778e",
+      "value": "0",
+      "data": "0xf80ba00f00000000000000000000000018ff8b19e9e9cc35c7f10b1c690bb84d56cc94420000000000000000000000001f5ed27aef8367bc8ea936ec562b776a1399e5d40000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c723823b872dd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000009c4",
+      "expect": "false",
+      "result": {
+        "ok": true,
+        "returnData": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "decodedRevert": null,
+      "secondaryAgrees": true,
+      "passed": true
+    }
+  ],
+  "facts": {
+    "allowance": "5000",
+    "principalTokenBalance": "19990000",
+    "recipientTokenBalance": "13100",
+    "mandate": {
+      "agent": "0x18ff8b19e9e9cc35c7f10b1c690bb84d56cc9442",
+      "validFrom": "1789459464",
+      "validUntil": "1789463064",
+      "principal": "0x1f5ed27aef8367bc8ea936ec562b776a1399e5d4",
+      "revoked": true,
+      "complianceProvider": "0xa90d2503d5d9b80ecc27856ff76f892b8c02f278",
+      "identityRef": "0x6cc959e8598e56ce16688ac27025da562401e5a85fd3814d27ed69800f1f7633",
+      "asset": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
+      "maxTransactionValue": "10000",
+      "maxCumulativeValue": "15000",
+      "cumulativeUsed": "10000",
+      "metadata": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "actionEnabled": true,
+    "agentFrozen": false,
+    "executorAction": {
+      "supported": true,
+      "hasAmount": true,
+      "amountIndex": 2
+    }
+  },
+  "secondaryFactsAgree": true,
+  "conditions": [
+    {
+      "id": "mandate-exists",
+      "holds": true
+    },
+    {
+      "id": "within-validity-window",
+      "holds": true
+    },
+    {
+      "id": "agent-not-frozen",
+      "holds": true
+    },
+    {
+      "id": "action-enabled",
+      "holds": true
+    },
+    {
+      "id": "executor-action-configured",
+      "holds": true
+    },
+    {
+      "id": "revoked",
+      "holds": true
+    },
+    {
+      "id": "probe-within-transaction-cap",
+      "holds": true
+    },
+    {
+      "id": "probe-fits-remaining-cumulative-cap",
+      "holds": true
+    },
+    {
+      "id": "balance-covers-probe",
+      "holds": true
+    },
+    {
+      "id": "allowance-covers-probe",
+      "holds": true
+    }
+  ],
+  "allowedLegPassed": true,
+  "passed": true,
+  "interpretation": "The same calldata, sender, target and value revert with CannotExecute after revocation while balance, allowance, caps, validity, freeze and action checks still hold, so the denial is attributed to revocation. No rejected transaction was sent."
+}
