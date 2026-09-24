@@ -693,7 +693,7 @@ const LIVE_RUN_KEYS = [
 // Added after the first live workspace files existed; a run without it still validates.
 const LIVE_RUN_OPTIONAL_KEYS = ['codeIdentitySha256'];
 const EXPLORER_TX = 'https://sepolia.etherscan.io/tx/';
-const STOP_DETAIL_KEYS = [
+export const STOP_DETAIL_KEYS = Object.freeze([
   'layer', 'step', 'check', 'rpcCode', 'status', 'signerStatus', 'apiErrorCode', 'transactionHash', 'nonce', 'field',
   'endpoint', 'operationId', 'controlId', 'blockers', 'revert', 'cause', 'method', 'baseFeePerGas', 'estimate',
   'balanceWei', 'steps', 'blockHash', 'purpose', 'notAfter', 'attempts', 'journalState', 'backoffUntil', 'lockFile',
@@ -701,7 +701,7 @@ const STOP_DETAIL_KEYS = [
   'dependencyOperationId', 'codeIdentitySha256', 'processCodeIdentitySha256', 'diskCodeIdentitySha256', 'phase',
   'platform', 'packageDirectory', 'attributed', 'mandate', 'tracked', 'allowance', 'expectedFromRun', 'approveResetVerified', 'member',
   'originReason'
-];
+]);
 // Why a recording binding refuses an exported package (R2-F04). One code, one
 // reason field, so a caller reads the same failure whether a member is damaged,
 // a member is missing or the package describes an earlier state of the run.
@@ -749,6 +749,11 @@ function sameMandateIdentity(mandate, planned) {
 function lockFailure(error, prefix) {
   if (!(error instanceof LiveLockError)) return error;
   const file = error.details?.lockFile ?? null;
+  if (error.code === 'LOCK_INVALID' && typeof error.details?.reason === 'string') {
+    return new BrickkenWorkspaceError(`${prefix}_LOCK_INVALID`,
+      `The ${file} path is not a plain file of its own (a link, a junction or a second name of another file), so it was not used and was left in place. Check what it points to, then remove it by hand.`,
+      { lockFile: file, reason: error.details.reason });
+  }
   if (error.code === 'LOCK_INVALID') {
     return new BrickkenWorkspaceError(`${prefix}_LOCK_INVALID`,
       `The ${file} file has unreadable content and was left in place. Check that no Mandate Desk process is running, then remove it by hand.`, { lockFile: file });

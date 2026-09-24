@@ -12,6 +12,13 @@
 // holder's own handle and closes it. On a platform where the exclusive open
 // cannot be verified the lock refuses to work rather than fall back to a
 // weaker protocol; the launcher and README name Windows as the platform.
+// The handle is also bound to the path: a lock path that is a symbolic link, a
+// junction or another reparse point, or a file with a second name, is refused
+// and left in place, and after the open the path must name the very file the
+// handle holds (file id compared as a 64-bit integer). While the handle is
+// open the file cannot be renamed or deleted, so the path keeps naming it. The
+// folders above the lock file are inside the data directory, which only the
+// owner's account may write (SECURITY.md).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -62,6 +69,32 @@ function readThroughDescriptor(descriptor) {
   const length = fs.readSync(descriptor, buffer, 0, buffer.length, 0);
   if (length > MAX_LOCK_BYTES) return null;
   return parseRecord(buffer.toString('utf8', 0, length));
+}
+
+// A lock path is usable only as a regular file with exactly one name. lstat
+// does not follow the last component, so a link or a junction there shows as
+// what it is. NTFS file ids exceed 2^53, so identities are compared as bigint.
+function pathEntryProblem(entry) {
+  if (!entry) return null;
+  if (entry.isSymbolicLink() || !entry.isFile()) return 'NOT_A_REGULAR_FILE';
+  if (entry.nlink !== 1n) return 'SECOND_NAME';
+  return null;
+}
+export function pathBindingProblem(file, descriptor) {
+  let own;
+  let entry;
+  try {
+    own = fs.fstatSync(descriptor, { bigint: true });
+    entry = fs.lstatSync(file, { bigint: true, throwIfNoEntry: false });
+  } catch {
+    return 'UNREADABLE';
+  }
+  if (!entry) return 'MISSING';
+  const problem = pathEntryProblem(entry);
+  if (problem) return problem;
+  if (own.nlink !== 1n) return 'SECOND_NAME';
+  if (entry.ino !== own.ino || entry.dev !== own.dev) return 'NOT_THE_HELD_FILE';
+  return null;
 }
 
 function writeThroughDescriptor(descriptor, record) {
@@ -134,8 +167,8 @@ function createLease(file, descriptor, record) {
   const holds = () => {
     if (released) return false;
     try {
-      const own = fs.fstatSync(descriptor);
-      const current = fs.statSync(file, { throwIfNoEntry: false });
+      const own = fs.fstatSync(descriptor, { bigint: true });
+      const current = fs.statSync(file, { bigint: true, throwIfNoEntry: false });
       if (!current || current.ino !== own.ino || current.dev !== own.dev) return false;
       const stored = readThroughDescriptor(descriptor);
       return stored !== null && stored.ownerId === record.ownerId && stored.pid === record.pid && stored.releasedAt === undefined;
@@ -166,8 +199,10 @@ function createLease(file, descriptor, record) {
 // that released the lock, is taken over within the same attempt. Errors:
 // LOCK_UNSUPPORTED when the exclusive open cannot be verified on this
 // platform, LOCK_DIRECTORY_MISSING when the lock's folder is gone, LOCK_INVALID
-// for content that is not a holder record (it is left in place for a person to
-// inspect), busyCode for a live holder.
+// for content that is not a holder record and, with details.reason naming the
+// problem, for a lock path that is a link, a junction or a second name of a
+// file, or that does not name the file the handle opened (either is left in
+// place for a person to inspect), busyCode for a live holder.
 export function acquireLiveLock(file, { holder = {}, now = () => Date.now(), attempts = 1, waitMs = 10, busyCode = 'LOCK_BUSY' } = {}) {
   if (typeof file !== 'string' || !Number.isSafeInteger(attempts) || attempts < 1) fail('LOCK_CONFIGURATION');
   const name = path.basename(file);
@@ -182,6 +217,10 @@ export function acquireLiveLock(file, { holder = {}, now = () => Date.now(), att
     } catch (error) {
       if (error?.code === 'ENOENT') fail('LOCK_DIRECTORY_MISSING', { lockFile: name });
       if (error?.code !== 'EEXIST') throw error;
+      let entry = null;
+      try { entry = fs.lstatSync(file, { bigint: true, throwIfNoEntry: false }); } catch { entry = null; }
+      const problem = pathEntryProblem(entry);
+      if (problem) fail('LOCK_INVALID', { lockFile: name, reason: problem });
       try {
         descriptor = fs.openSync(file, OPEN_EXISTING | EXCLUSIVE_FLAG | NONBLOCK_FLAG);
       } catch (inner) {
@@ -193,6 +232,10 @@ export function acquireLiveLock(file, { holder = {}, now = () => Date.now(), att
       }
     }
     try {
+      // Nothing is read or written until the path is known to name exactly the
+      // file this handle holds.
+      const binding = pathBindingProblem(file, descriptor);
+      if (binding) fail('LOCK_INVALID', { lockFile: name, reason: binding });
       if (!created) {
         // This process holds the only handle, so the earlier holder is gone or
         // released. Content that is not a holder record is never taken over.

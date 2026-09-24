@@ -188,6 +188,28 @@ function readX402Quote(container) {
   if (quote === null || quote === undefined) return null;
   return deepFreeze(JSON.parse(JSON.stringify(quote)));
 }
+// The quote can sit beside the data envelope and inside it. Equal values are
+// one quote. Two different non-null quotes in one response are refused with
+// QUOTE_CONFLICT instead of one being chosen silently. Either way the quote
+// stays out of the transaction and the preparation hash.
+function envelopeQuote(outer, inner) {
+  const quote = readX402Quote(inner);
+  if (outer !== null && quote !== null && !sameJson(outer, quote)) fail('QUOTE_CONFLICT');
+  return outer ?? quote;
+}
+// Deep equality of two parsed JSON values; the order of object keys does not matter.
+function sameJson(left, right) {
+  if (left === right) return true;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left) && Array.isArray(right) && left.length === right.length &&
+      left.every((item, index) => sameJson(item, right[index]));
+  }
+  if (left && right && typeof left === 'object' && typeof right === 'object') {
+    const keys = Object.keys(left);
+    return keys.length === Object.keys(right).length && keys.every(key => Object.hasOwn(right, key) && sameJson(left[key], right[key]));
+  }
+  return false;
+}
 function deepFreeze(value) {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
     Object.freeze(value);
@@ -212,7 +234,7 @@ export function validateExecutePrepareResponse(body, expectationInput, nowSecond
       shape(root, Object.hasOwn(root, 'x402Requirements') ? ['data', 'x402Requirements'] : ['data']);
       json = root.data;
       if (!plain(json)) fail('ENVELOPE');
-      quote = quote ?? readX402Quote(json);
+      quote = envelopeQuote(quote, json);
     }
     const keys = Object.hasOwn(json, 'info') ? ['transactions', 'txId', 'info'] : ['transactions', 'txId'];
     if (Object.hasOwn(json, 'x402Requirements')) keys.push('x402Requirements');
@@ -263,7 +285,7 @@ export function parseRamsPrepareResponse(body) {
       shape(root, Object.hasOwn(root, 'x402Requirements') ? ['data', 'x402Requirements'] : ['data']);
       json = root.data;
       if (!plain(json)) fail('ENVELOPE');
-      quote = quote ?? readX402Quote(json);
+      quote = envelopeQuote(quote, json);
     }
     const keys = Object.hasOwn(json, 'info') ? ['transactions', 'txId', 'info'] : ['transactions', 'txId'];
     if (Object.hasOwn(json, 'x402Requirements')) keys.push('x402Requirements');

@@ -1,31 +1,31 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-20",
+  "generatedAt": "2026-09-24",
   "algorithm": "sha256",
   "excludes": [
-    "SHA256-MANIFEST.json"
+    "sha256-manifest.json"
   ],
-  "fileCount": 128,
+  "fileCount": 133,
   "files": [
     {
       "path": ".gitattributes",
       "bytes": 108,
-      "sha256": "33905186c4dabeca22ab9afff5156cc1af1f227ec4ddc522516c24671c2723e9"
+      "sha256": "1dc1d8854e5486a2006cd3aec954e6f8dcf7267402770b8f9716446d43d8bfbb"
+    },
+    {
+      "path": ".github/dependabot.yml",
+      "bytes": 511,
+      "sha256": "da894d1c93738142f4bf1144597e0bf29b3dac5e588da77b7d321e8124490da7"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "bytes": 1006,
+      "sha256": "d7330b070bd899196b2c910ddfb6572ec5fa25c89780cea2d0bdbbeb49a876c9"
     },
     {
       "path": ".gitignore",
       "bytes": 67,
       "sha256": "c73e86970abd2f0d786155e428490875f967dc1965dfa6b4e98d58976547f2a6"
-    },
-    {
-      "path": "AI-DISCLOSURE.md",
-      "bytes": 2597,
-      "sha256": "4dd6875cb2261b297c0b348424cdb2552dc31e2336ea9f954a4172d53c88082c"
-    },
-    {
-      "path": "DEMO.md",
-      "bytes": 7190,
-      "sha256": "8b263a213d938509f29ea4130c1e9977024c9fa62e002c678e13780b4b4fc034"
     },
     {
       "path": "LICENSE",
@@ -34,18 +34,23 @@
     },
     {
       "path": "README.md",
-      "bytes": 14212,
-      "sha256": "309746bd9b0a24a63c9911add5f869f5bc60224d1a3e52ece3a84dd4601bfb94"
+      "bytes": 15162,
+      "sha256": "8b69f97201a3d183f10c75c833b092466e36763a60e1e2102ea02c685191cdc2"
     },
     {
-      "path": "THIRD-PARTY-NOTICES.md",
-      "bytes": 1533,
-      "sha256": "b48047c00f2e4d35e96fd280b5bf75b99115e910ac820c93bd09fd897035edda"
+      "path": "SECURITY.md",
+      "bytes": 3094,
+      "sha256": "6e82290bda367e75702b995511d73b843745423ca4c0c60c02a028bf615a8d3c"
     },
     {
-      "path": "VERIFICATION.md",
-      "bytes": 25410,
-      "sha256": "f2d8c9aa70f0c72a315994c138674dadcca79844296433e82ebacea633eeee09"
+      "path": "ai-disclosure.md",
+      "bytes": 2842,
+      "sha256": "a1e8dabfc136d8cb0258bbc935715b06d90c5bcc26725ffd837feb390669c491"
+    },
+    {
+      "path": "demo.md",
+      "bytes": 7190,
+      "sha256": "8b263a213d938509f29ea4130c1e9977024c9fa62e002c678e13780b4b4fc034"
     },
     {
       "path": "integration/demo-proposal.json",
@@ -69,8 +74,8 @@
     },
     {
       "path": "media/mandate-desk-card.png",
-      "bytes": 335559,
-      "sha256": "c18db92bcd33e84b6984b4f9717ace7f9102a5fd598570e9989a005fe1834c83"
+      "bytes": 335521,
+      "sha256": "26d918fd2ada5b596b928c4285ba7751c14ae9d006f2887505376fb0cf39a90b"
     },
     {
       "path": "media/mandate-desk-demo.mp4",
@@ -189,13 +194,18 @@
     },
     {
       "path": "src/brickken-live-adapter.mjs",
-      "bytes": 66713,
-      "sha256": "8ca9e69782ec37fc3f094f8090b64e146da806a106ed4836fb4d1e4f240f2e9d"
+      "bytes": 68432,
+      "sha256": "583e7ed113fb074b61268160050147f9c0e08225880735c36da15763c7307569"
     },
     {
       "path": "src/brickken-live-completeness.mjs",
       "bytes": 5667,
       "sha256": "1b03f1d28c3a3fa24e7524fedad9753e41992ca668291fb6f547112c94c681fe"
+    },
+    {
+      "path": "src/brickken-live-evidence-schema.mjs",
+      "bytes": 15938,
+      "sha256": "d335e8597c63a9600dfa3ebcc0f573590a6b74cc3e8e3d96f7c5246d2e4f3a66"
     },
     {
       "path": "src/brickken-live-plan.mjs",
@@ -219,8 +229,8 @@
     },
     {
       "path": "src/brickken-prepare.mjs",
-      "bytes": 15819,
-      "sha256": "d87ad61eac2eb38f115977a2ebc8bf2528e887d786977acc63794e34a59a5628"
+      "bytes": 16941,
+      "sha256": "eef595232be95f5cae87fc2e2f39398a7b4780fe21845ef68bf304e4165726f1"
     },
     {
       "path": "src/brickken-read.mjs",
@@ -234,8 +244,8 @@
     },
     {
       "path": "src/brickken-workspace.mjs",
-      "bytes": 119822,
-      "sha256": "30ca78ba13fb9bcadaac6c1e575afc4d054961b53a87252e2e651849f1a68e08"
+      "bytes": 120256,
+      "sha256": "12f44d87a6e13041027d76a2fd6f7908e6d53a6fcbe75917ca3018f4f48e3599"
     },
     {
       "path": "src/code-identity.mjs",
@@ -254,8 +264,8 @@
     },
     {
       "path": "src/live-lock.mjs",
-      "bytes": 10240,
-      "sha256": "f2f908fcc952f60057260ba54c0fdb6d25077b1b4c06d8f555b08e17de6b9c0d"
+      "bytes": 12415,
+      "sha256": "1bdff037b09eec0d11c58160a41d5b5163372ff277a48cb46f82db552dbb9d16"
     },
     {
       "path": "src/live-signer-http.mjs",
@@ -328,9 +338,14 @@
       "sha256": "edcc5fe502ebda8119a092ce88ccb49f3b5c047dd098e2e54cd65abc83612404"
     },
     {
+      "path": "test/brickken-live-hardening.test.mjs",
+      "bytes": 20946,
+      "sha256": "894879fad8bbe0f73d12dbd8868f6cf045c5015e875b00428419e40f72ab57ac"
+    },
+    {
       "path": "test/brickken-live-http.test.mjs",
-      "bytes": 31534,
-      "sha256": "d97f11cb4e9dfe606401b1882770237bf52c7b1844c48a38c1a625ab2e43a281"
+      "bytes": 33027,
+      "sha256": "b15afb7ff83c4412aeec8695313859863abc6789c618cd626d388728ac4292ae"
     },
     {
       "path": "test/brickken-live-journal.test.mjs",
@@ -379,8 +394,8 @@
     },
     {
       "path": "test/brickken-prepare.test.mjs",
-      "bytes": 13931,
-      "sha256": "d2e772f11a89f13cb4f36999aa18b8b4e0553db7bfa847c62454454f3b13ee0c"
+      "bytes": 15291,
+      "sha256": "bf5259703abafaef174916d0ea3a2c1c7533e03bf79327cef6048f55156d7136"
     },
     {
       "path": "test/brickken-read.test.mjs",
@@ -424,8 +439,8 @@
     },
     {
       "path": "test/live-fakes.mjs",
-      "bytes": 29247,
-      "sha256": "36ee9c93c873911ce5965ca4a9f4b1dc494501fbae66cc8dbb583b7a900120c1"
+      "bytes": 29624,
+      "sha256": "32d892776e39c049b66903a3bf368ebe007decd693ff583feb3c4de90c45fd51"
     },
     {
       "path": "test/mcp-transport.test.mjs",
@@ -443,14 +458,19 @@
       "sha256": "e9cd08a3bbd50efebbfb4c74928ef390c134e8bd21b33bd80645eab41d790d06"
     },
     {
+      "path": "third-party-notices.md",
+      "bytes": 1533,
+      "sha256": "b48047c00f2e4d35e96fd280b5bf75b99115e910ac820c93bd09fd897035edda"
+    },
+    {
       "path": "tools/check-demo.mjs",
-      "bytes": 1324,
-      "sha256": "396a63ee0d8c74fd8b22c9bf22dbe4de2542e40c1a62e41425042cdd8b6be6ec"
+      "bytes": 1358,
+      "sha256": "66043b30751364410072234ba0fd8ae334577a0234b1bf9d862518aa9a06029c"
     },
     {
       "path": "tools/export-live-evidence.mjs",
-      "bytes": 11828,
-      "sha256": "94215d0b57305eec0afc8e8b9f330bbd358cec91d278e01714a1980ed29a1e9c"
+      "bytes": 14311,
+      "sha256": "6c6c7d24559d8335ad90d93e7b38891fc70806e460f05a7ac74d1c28b5050c10"
     },
     {
       "path": "tools/live-signer.mjs",
@@ -481,6 +501,11 @@
       "path": "vendor/ethers-6.17.0/ethers.umd.min.cjs",
       "bytes": 526551,
       "sha256": "532950515fd29ae9f7a21ceb2b68100815024d7944c3d5a92246d5b900bd703b"
+    },
+    {
+      "path": "verification.md",
+      "bytes": 28476,
+      "sha256": "88b599a8d56728736f7764abf3d8aee13c49f1ce1faeaabbb54166501b8cfae2"
     },
     {
       "path": "verification/brickken-sandbox-2026-09-14/public-chain/action-setup-simulation.json",

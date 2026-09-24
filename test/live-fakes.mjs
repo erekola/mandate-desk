@@ -440,8 +440,8 @@ export class FakeRpc {
 const BRICKKEN_CODES = new Set(['PAYMENT_REQUIRED', 'AUTHORIZATION_DENIED', 'RATE_LIMITED', 'HTTP_REJECTED', 'HTTP_TIMEOUT', 'NETWORK_FAILED', 'PREPARATION_REJECTED']);
 
 // A Brickken-like gateway with the real signer policy. Faults are queued per
-// method: prepare accepts PAYMENT_REQUIRED, SIGNER_NOT_WHITELISTED, WRONG_RECIPIENT
-// and HIGH_FEE; send accepts TIMEOUT_ACCEPTED, TIMEOUT_DROPPED, REJECT_400 and
+// method: prepare accepts PAYMENT_REQUIRED, SIGNER_NOT_WHITELISTED, WRONG_RECIPIENT,
+// HIGH_FEE and QUOTE_CONFLICT; send accepts TIMEOUT_ACCEPTED, TIMEOUT_DROPPED, REJECT_400 and
 // WRONG_RELAY_HASH.
 export class FakeSignerGateway {
   constructor({ chain, proposal, clock }) {
@@ -509,10 +509,15 @@ export class FakeSignerGateway {
         };
         const txId = `fake_prepare_${++gateway.counter}`;
         // The documented response carries an x402Requirements quote beside the transaction; the fake sends one so every live test reads it as data.
-        const x402Requirements = { scheme: 'exact', network: 'eip155:84532', asset: 'USDC', maxAmountRequired: '250000', payTo: '0x' + '55'.repeat(20), note: 'fake quote, never paid' };
+        // A fake quote, never paid, with x402 payment requirement fields only, as the evidence schema admits.
+        const x402Requirements = { scheme: 'exact', network: 'eip155:84532', asset: 'USDC', maxAmountRequired: '250000', payTo: '0x' + '55'.repeat(20) };
         // Match the observed sandbox envelope as the default fixture. Wrapped
         // responses and other quote forms remain covered by parser unit tests.
-        const responseText = JSON.stringify({ transactions: transaction, txId, info: { contractAddress: transaction.to, mode: 'direct' }, executionMode: 'client-signed', x402Requirements: [x402Requirements] });
+        const inner = { transactions: transaction, txId, info: { contractAddress: transaction.to, mode: 'direct' }, executionMode: 'client-signed', x402Requirements: [x402Requirements] };
+        // QUOTE_CONFLICT wraps the response and puts a second, different quote beside the envelope.
+        const responseText = fault === 'QUOTE_CONFLICT'
+          ? JSON.stringify({ data: inner, x402Requirements: [{ ...x402Requirements, maxAmountRequired: '1' }] })
+          : JSON.stringify(inner);
         try {
           const parsed = parseRamsPrepareResponse(responseText);
           plan.checkLiveTransaction(p, step, parsed.transaction, { nonce: String(normalized.nonce) });

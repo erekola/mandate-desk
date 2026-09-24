@@ -1,10 +1,10 @@
 # Verification record
 
-Prepared on 14 September 2026 and updated on 15 September 2026. This record describes what this public repository proves and where the proof stops. The repository is a curated copy of a reviewed local package. Some results below were measured on the repository's own files. The others are dated results from the reviewed package and each section says which kind it is.
+Prepared on 14 September 2026 and updated on 15 and 24 September 2026. This record describes what this public repository proves and where the proof stops. The repository is a curated copy of a reviewed local package. Some results below were measured on the repository's own files. The others are dated results from the reviewed package and each section says which kind it is.
 
 ## Tests on this repository
 
-The supplied snapshot of the first live run was tested on 15 September 2026 with Node.js 24.19.0. The command `node tools/check-demo.mjs` passed 390 of 390 tests, twice, with the same test names both times. The public copy of 14 September 2026 passed 162 of 162 with the same command and the 228 tests added since cover the live Sepolia path.
+The supplied snapshot of the first live run was tested on 15 September 2026 with Node.js 24.19.0. The command `node tools/check-demo.mjs` passed 390 of 390 tests, twice, with the same test names both times. The public copy of 14 September 2026 passed 162 of 162 with the same command and the 228 tests added since cover the live Sepolia path. The revision of 24 September 2026 was tested with the same command and Node.js 24.19.0, and the results are in the last section of this record.
 
 ## Changes from the reviewed package
 
@@ -12,7 +12,7 @@ One fixture changed. The reviewed package's `integration/demo-proposal.json` nam
 
 The documentation was updated for the repository. The reviewed package also held submission documents, machine-readable evidence reports, style reports, a local Git bundle and the original WebM recording. They stay with the local package and are not in this repository.
 
-`SHA256-MANIFEST.json` lists the SHA-256 of every other file in the repository.
+`sha256-manifest.json` lists the SHA-256 of every other file in the repository.
 
 ## External MCP client checks
 
@@ -62,7 +62,7 @@ The fourth attempt, run `live_c990e8a178b04a35835d8fe92097c20f`, completed. Its 
 
 The revocation phase stopped seven times before a signature with HTTP 429 from one public read source, whose burst limit the preparation of the allowance reset exceeded with its dependency reads. The run's read client stopped on HTTP 429 and the code could not change during the run because the code identity binds the run to the tree. On Erik's decision the owner server was restarted with a Node preload that spaces the reads to the two public endpoints and retries a read that answers 429 and never retries a send. The preload is outside the code identity. The process identity and the disk identity of the run were unchanged and the signer process was not restarted. The owner server process also executed that file during the last step. That is a deviation from the statement that the process runs the approved bytes and it is disclosed here rather than corrected after the fact. Fix round 5 implements bounded backoff on allowlisted reads and spaced dependency reads inside the covered code. This later correction leaves the historical preload deviation intact.
 
-The evidence package is `verification/sepolia-live-c990e8a178b0/`, 32 files exported by `tools/export-live-evidence.mjs` from the owner's data directory with `SHA256SUMS.json` covering the other 31 files. That checksum file has SHA-256 `a367dea097bc7f96f41defeea5816d708e0653104994b6e4979eef4b830b96e7`. It holds the run approval, the preflight and code identity records, the preparation of every write with its receipt and its postcheck, the four control observations, the replay observation, the finality reading and the transaction table with explorer links. The incomplete export of 11:26 UTC was replaced by this one and is not in the repository. The export refuses any file that would carry signed transaction bytes and the package was checked before publication: it holds no signed bytes, no wallet and no key and it contains public plan and chain data plus API quote metadata. The preparation evidence of setAction records the API's x402Requirements metadata under x402Quote, including three priced assets. That quote is retained as evidence and is excluded from the transaction and preparation hash. It authorizes no payment.
+The evidence package is `verification/sepolia-live-c990e8a178b0/`, 32 files exported by `tools/export-live-evidence.mjs` from the owner's data directory with `SHA256SUMS.json` covering the other 31 files. That checksum file has SHA-256 `a367dea097bc7f96f41defeea5816d708e0653104994b6e4979eef4b830b96e7`. It holds the run approval, the preflight and code identity records, the preparation of every write with its receipt and its postcheck, the four control observations, the replay observation, the finality reading and the transaction table with explorer links. The incomplete export of 11:26 UTC was replaced by this one and is not in the repository. The export refuses any file that would carry signed transaction bytes and the package was checked before publication: it holds no signed bytes, no wallet and no key and it contains public plan and chain data plus API quote metadata. The preparation evidence of setAction records the API's x402Requirements metadata under x402Quote, including three priced assets. That quote is retained as evidence and is excluded from the transaction and preparation hash. It authorizes no payment. All 32 files of the package also pass the closed field schema that the export gained on 24 September 2026.
 
 ## Preserved state and authorization
 
@@ -96,8 +96,26 @@ The origin evidence uses reason. A cleanup refusal reports that value as details
 | FOREIGN_APPROVAL | The history contained an approval outside the run's approve and reset transactions. |
 | null | The origin check attributed the observed history to the run. The allowance value must still equal the expected remainder. |
 
-These values describe attribution at the observation block. The observation-to-inclusion window remains open after the last read, as described in DEMO.md. The query range limit is 100000 blocks inclusive. Missing history fails closed. Tests cover a foreign approval just before reset signing and confirm that the incomplete export retains both origin readings and the refusal without signing the reset.
+These values describe attribution at the observation block. The observation-to-inclusion window remains open after the last read, as described in demo.md. The query range limit is 100000 blocks inclusive. Missing history fails closed. Tests cover a foreign approval just before reset signing and confirm that the incomplete export retains both origin readings and the refusal without signing the reset.
 
 ## Local Codex review of fix round 5
 
 The isolated source copy passed 401 tests on 15 September 2026. The earlier 400-test run passed before the shared fake-RPC range boundary test was added. The new checks cover bounded read retries, the original call deadline, write retry exclusion, interrupted-run cleanup, the exported refusal records, explicit null quotes in wrapped responses and the recording page before and after the second execute call. These results describe the later local source copy. The saved live run retains its original code identity and its disclosed owner preload.
+
+## Repository hardening of 24 September 2026
+
+Two repository reviews by Codex, on 19 and 22 September 2026, left open items for this repository. This revision closes them, each with a test.
+
+The evidence export checks every file of a package against a closed field schema for its kind in `src/brickken-live-evidence-schema.mjs`, nested objects and array elements included. A field outside the schema stops the export. Its message names the file and the known place of the field and never the field itself. It builds the whole package in memory, writes it into a staging folder and renames that folder into place last, so a refused export leaves no package. A `signedTransaction` field anywhere is still refused. In the second review's probe, synthetic `apiKey` and `authorization` fields went into a nested array of an evidence file, and that export now stops.
+
+The live lock refuses a lock path that is a symbolic link, a junction or a second name of another file, and it leaves that path in place. After the open, the path must name the file that the exclusive handle holds. File ids are compared as 64-bit integers, because an NTFS file id can exceed the integer range of a JavaScript number.
+
+The signer endpoint record must match the exact record that `tools/live-signer.mjs` writes and must name the code identity of the process that reads it. A mismatch stops with SIGNER_UNAVAILABLE, and the stop details name the reason. The workspace still asks the running signer for its approval and code identity before every write.
+
+Two different x402 quotes in one preparation response, one beside the data envelope and one inside it, stop the preparation with QUOTE_CONFLICT. Equal quotes count as one quote. The Brickken sandbox sent its quote at the root only on 15 September 2026, so no observed response changes.
+
+`SECURITY.md` describes the trust boundary of the data folder and how to report a vulnerability. GitHub Actions runs `node tools/check-demo.mjs` on Windows for every push and pull request, with read-only repository access, actions pinned to commits and no secrets. `tools/check-demo.mjs` now also checks the syntax of the JavaScript files under `tools/`.
+
+On this machine the suite ran 415 tests twice with the same test names, and both times 414 passed and one was skipped. That test needs a file symbolic link, which this Windows installation creates only with elevation or developer mode, so it runs only where Windows allows that.
+
+This revision has the code identity `d1858317e75bc58b671849a78e97200b663c8f0097fec035e88bc3c3e3a9c074`. The live run of 15 September 2026 keeps its code identity `086c78401b54a9f9d9f6a47018b4ed6e0e04038e5a5c708d685b06443d31dc79` and its package `a367dea097bc7f96f41defeea5816d708e0653104994b6e4979eef4b830b96e7`, and nothing here changes either of them.

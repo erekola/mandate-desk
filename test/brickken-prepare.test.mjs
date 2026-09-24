@@ -244,3 +244,18 @@ test('malformed and oversized response diagnostics do not echo response contents
     });
   }
 });
+
+test('hardening: a quote beside and inside the data envelope is one quote when the two are equal and is refused with QUOTE_CONFLICT when they differ', () => {
+  const { response, check } = fixture();
+  const quote = { scheme: 'exact', network: 'eip155:84532', asset: 'USDC', maxAmountRequired: '250000' };
+  const reordered = { maxAmountRequired: '250000', asset: 'USDC', network: 'eip155:84532', scheme: 'exact' };
+  assert.deepEqual(check({ data: { ...response, x402Requirements: quote }, x402Requirements: reordered }), check({ data: response }));
+  assert.deepEqual(check({ data: { ...response, x402Requirements: [quote] }, x402Requirements: [quote] }), check({ data: response }));
+  for (const [outer, inner] of [[quote, { ...quote, maxAmountRequired: '1' }], [[quote], quote], ['pay', 'pay later'], [1, 2],
+    [quote, { ...quote, extra: true }], [[quote], [quote, quote]]]) {
+    assert.throws(() => check({ data: { ...response, x402Requirements: inner }, x402Requirements: outer }), { code: 'QUOTE_CONFLICT' }, JSON.stringify([outer, inner]));
+  }
+  // A null quote on one side is no quote, so the other side stands alone.
+  assert.doesNotThrow(() => check({ data: { ...response, x402Requirements: quote }, x402Requirements: null }));
+  assert.doesNotThrow(() => check({ data: { ...response, x402Requirements: null }, x402Requirements: quote }));
+});

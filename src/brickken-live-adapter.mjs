@@ -17,6 +17,7 @@ import { BrickkenJournalError, LIVE_SIGNER_SOURCE, livePostcheckKind } from './b
 import { parseRamsPrepareResponse } from './brickken-prepare.mjs';
 import { SEPOLIA_RPC_ENDPOINTS, SepoliaRpc, SepoliaRpcError, toPostcheckReceipt } from './brickken-rpc.mjs';
 import { MAX_SEND_ATTEMPTS, SEND_ATTEMPT_WINDOW_MS, decodeSignedLiveTransaction } from './brickken-live-signer.mjs';
+import { PROCESS_CODE_IDENTITY_SHA256 } from './code-identity.mjs';
 import {
   verifyApprovePostcheck,
   verifyExecutePostcheck,
@@ -136,8 +137,22 @@ export function chooseGasLimit(proposal, step, estimate) {
 const BRICKKEN_LAYER_CODES = new Set([
   'PAYMENT_REQUIRED', 'AUTHORIZATION_DENIED', 'RATE_LIMITED', 'HTTP_REJECTED', 'HTTP_TIMEOUT', 'NETWORK_FAILED',
   'HTTP_FAILED', 'REDIRECT_REJECTED', 'RESPONSE_TOO_LARGE', 'RESPONSE_INVALID', 'PREPARATION_REJECTED',
-  'MODE_REJECTED', 'SEND_RESPONSE_UNREADABLE'
+  'MODE_REJECTED', 'QUOTE_CONFLICT', 'SEND_RESPONSE_UNREADABLE'
 ]);
+
+// The exact endpoint record tools/live-signer.mjs writes when the signer listens.
+const SIGNER_ENDPOINT_KEYS = Object.freeze(['approvalSha256', 'codeIdentitySha256', 'kind', 'notAfter', 'pid', 'port', 'schemaVersion', 'startedAt']);
+function isoTime(value) { return typeof value === 'string' && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value; }
+export function validSignerEndpoint(endpoint) {
+  if (!endpoint || typeof endpoint !== 'object' || Array.isArray(endpoint)) return false;
+  const keys = Object.keys(endpoint).sort();
+  if (keys.length !== SIGNER_ENDPOINT_KEYS.length || keys.some((key, index) => key !== SIGNER_ENDPOINT_KEYS[index])) return false;
+  return endpoint.schemaVersion === 1 && endpoint.kind === 'mandate-desk-live-signer-endpoint' &&
+    Number.isSafeInteger(endpoint.port) && endpoint.port >= 1024 && endpoint.port <= 65535 &&
+    Number.isSafeInteger(endpoint.pid) && endpoint.pid >= 1 &&
+    /^[a-f0-9]{64}$/.test(endpoint.approvalSha256 ?? '') && /^[a-f0-9]{64}$/.test(endpoint.codeIdentitySha256 ?? '') &&
+    isoTime(endpoint.notAfter) && isoTime(endpoint.startedAt);
+}
 
 export class LiveSignerClient {
   constructor({ dataDirectory, role, fetchImpl = globalThis.fetch }) {
@@ -149,17 +164,24 @@ export class LiveSignerClient {
     this.fetchImpl = fetchImpl;
   }
 
+  // The endpoint file is checked as a whole record, and the source code
+  // identity it names must be this process's own: a signer started for other
+  // source bytes, or a file such a signer left behind, is not used. The file is
+  // local and self-declared, so this stops a stale or mismatched endpoint, not
+  // a writer who can change the data folder (SECURITY.md). The workspace still
+  // asks the running signer for its approval and identity before every write.
   #endpoint() {
+    let endpoint;
+    let token;
     try {
-      const endpoint = JSON.parse(fs.readFileSync(path.join(this.liveDirectory, 'signer-endpoint.json'), 'utf8'));
-      const token = fs.readFileSync(path.join(this.liveDirectory, `signer-${this.role}.token`), 'utf8');
-      if (endpoint?.kind !== 'mandate-desk-live-signer-endpoint' || !Number.isSafeInteger(endpoint.port) ||
-          endpoint.port < 1024 || endpoint.port > 65535 || !/^[a-f0-9]{64}$/.test(token) ||
-          !/^[a-f0-9]{64}$/.test(endpoint.approvalSha256 ?? '')) throw new Error('shape');
-      return { port: endpoint.port, token, approvalSha256: endpoint.approvalSha256 };
+      endpoint = JSON.parse(fs.readFileSync(path.join(this.liveDirectory, 'signer-endpoint.json'), 'utf8'));
+      token = fs.readFileSync(path.join(this.liveDirectory, `signer-${this.role}.token`), 'utf8');
     } catch {
       return fail('SIGNER_UNAVAILABLE', { layer: 'signer' });
     }
+    if (!validSignerEndpoint(endpoint) || !/^[a-f0-9]{64}$/.test(token)) fail('SIGNER_UNAVAILABLE', { layer: 'signer', reason: 'ENDPOINT_FORMAT' });
+    if (endpoint.codeIdentitySha256 !== PROCESS_CODE_IDENTITY_SHA256) fail('SIGNER_UNAVAILABLE', { layer: 'signer', reason: 'ENDPOINT_CODE_IDENTITY' });
+    return { port: endpoint.port, token, approvalSha256: endpoint.approvalSha256 };
   }
 
   async #call(method, route, body, timeoutMs) {

@@ -624,3 +624,18 @@ test('parseRamsPrepareResponse accepts the response shape the sandbox returned o
   assert.throws(() => parseRamsPrepareResponse(JSON.stringify({ ...observed, executionMode: 7 })), { code: 'MODE_REJECTED' });
   assert.throws(() => parseRamsPrepareResponse(JSON.stringify({ ...observed, unexpected: 1 })), { code: 'STRUCTURE' });
 });
+
+test('hardening: parseRamsPrepareResponse keeps one quote when the quotes beside and inside the data envelope are equal and refuses two different ones with QUOTE_CONFLICT', () => {
+  const inner = { transactions: ramsTransaction(), txId: 'rams-quote-conflict' };
+  const quote = [{ scheme: 'exact', network: 'eip155:84532', asset: 'USDC', maxAmountRequired: '250000' }];
+  const same = parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: quote }, x402Requirements: JSON.parse(JSON.stringify(quote)) }));
+  assert.deepEqual(same.x402Quote, quote);
+  assert.ok(Object.isFrozen(same.x402Quote));
+  assert.equal(Object.hasOwn(same.transaction, 'x402Requirements'), false);
+  assert.throws(() => parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: quote }, x402Requirements: [{ ...quote[0], maxAmountRequired: '1' }] })),
+    error => error instanceof BrickkenPrepareError && error.code === 'QUOTE_CONFLICT');
+  assert.throws(() => parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: 'pay' }, x402Requirements: quote })), { code: 'QUOTE_CONFLICT' });
+  // Null beside a quote is absent metadata, as in round 5.
+  assert.deepEqual(parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: quote }, x402Requirements: null })).x402Quote, quote);
+  assert.deepEqual(parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: null }, x402Requirements: quote })).x402Quote, quote);
+});

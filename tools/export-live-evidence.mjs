@@ -10,9 +10,15 @@
 // on both sources, and every required evidence file present. Anything less is
 // refused unless --allow-incomplete is given; the table then says complete:false
 // and lists what is missing.
+// Every file of the package is checked against the closed field schema of its
+// kind (src/brickken-live-evidence-schema.mjs) before anything is written: a
+// field outside the schema, at any depth, stops the export, and so does a
+// signedTransaction field anywhere. The whole package is built in memory,
+// written into a staging folder and renamed into place only when every file is
+// written, so a refused or failed export leaves no partial package.
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { ROOT, boundedPath } from '../src/store.mjs';
 import { LiveBrickkenJournal } from '../src/brickken-journal.mjs';
 import { sha256Canonical } from '../src/brickken-intent.mjs';
@@ -26,6 +32,7 @@ import {
 } from '../src/brickken-live-plan.mjs';
 import { evaluateLiveRunCompleteness } from '../src/brickken-live-completeness.mjs';
 import { PROCESS_CODE_IDENTITY_SHA256, computeCodeIdentity } from '../src/code-identity.mjs';
+import { evidenceKindOf, fieldsOutsideSchema } from '../src/brickken-live-evidence-schema.mjs';
 
 const EXPLORER_TX = 'https://sepolia.etherscan.io/tx/';
 const OPERATIONS = Object.freeze({
@@ -62,6 +69,14 @@ function readJson(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
   catch { return stop(`${path.relative(ROOT, file)} could not be read.`); }
 }
+// Every package member is read from a bounded regular file of the run's
+// evidence folder: no link, no second name, at most 8 MB. Null when absent.
+function readEvidenceMember(file) {
+  const stat = fs.lstatSync(file, { throwIfNoEntry: false });
+  if (!stat) return null;
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 8_000_000) stop('an evidence member is not a bounded regular file.');
+  return readJson(file);
+}
 
 function main() {
   const settings = parseArguments(process.argv.slice(2));
@@ -75,7 +90,8 @@ function main() {
   if (!run) stop('the run was not found.');
   if (run.status !== 'completed' && !settings.allowIncomplete) stop(`the run status is ${run.status}; use --allow-incomplete to export it as incomplete.`);
   const evidenceDirectory = boundedPath(path.join(liveDirectory, 'evidence', run.runId));
-  const approval = readJson(path.join(evidenceDirectory, 'run-approval.json'));
+  const approvalFile = path.join(evidenceDirectory, 'run-approval.json');
+  const approval = readEvidenceMember(approvalFile) ?? stop(`${path.relative(ROOT, approvalFile)} could not be read.`);
   try { validateRunApproval(approval, proposal); } catch { stop('the run approval does not match the reviewed plan.'); }
   if (approval.approvalSha256 !== run.approvalSha256) stop('the run approval hash differs from the run.');
   const journal = new LiveBrickkenJournal({ directory: path.join(liveDirectory, 'journal') });
@@ -98,22 +114,20 @@ function main() {
     ? path.resolve(ROOT, settings.output)
     : path.join(ROOT, 'verification', `sepolia-live-${run.runId.slice(5, 17)}`));
   if (fs.existsSync(output)) stop(`${path.relative(ROOT, output)} already exists; nothing was overwritten.`);
-  const written = new Map();
-  const write = (relative, value) => {
-    const target = boundedPath(path.join(output, relative));
-    const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2) + '\n';
+  // The package is collected here first and written only after every member
+  // has passed its checks.
+  const files = new Map();
+  const add = (relative, value) => {
+    if (files.has(relative)) stop(`${relative} would be written twice.`);
+    const text = JSON.stringify(value, null, 2) + '\n';
     // Signed bytes stay local even after broadcast.
     if (/"signedTransaction"\s*:/.test(text)) stop(`${relative} would contain signed transaction bytes.`);
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, text, { flag: 'wx' });
-    written.set(relative, sha256(Buffer.from(text, 'utf8')));
+    files.set(relative, { value, text });
   };
   const copyEvidence = (name, relative) => {
-    const source = path.join(evidenceDirectory, `${name}.json`);
-    const stat = fs.lstatSync(source, { throwIfNoEntry: false });
-    if (!stat) return false;
-    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 8_000_000) stop('an evidence member is not a bounded regular file.');
-    write(relative, readJson(source));
+    const value = readEvidenceMember(path.join(evidenceDirectory, `${name}.json`));
+    if (value === null) return false;
+    add(relative, value);
     return true;
   };
 
@@ -155,7 +169,7 @@ function main() {
   for (const item of transactions) item.finalizedOnBothSources = finalityEntries.get(item.operationId) ?? null;
   const controlFinality = new Map((run.finality?.entries ?? []).filter(entry => entry.controlId).map(entry => [entry.controlId, entry.finalized]));
 
-  write('run-approval.json', approval);
+  add('run-approval.json', approval);
   copyEvidence('preflight-plan', 'preflight-plan.json');
   copyEvidence('preflight-start', 'preflight-start.json');
   copyEvidence('code-identity', 'code-identity.json');
@@ -170,7 +184,7 @@ function main() {
   const refusals = fs.readdirSync(evidenceDirectory).filter(name => /^cleanup-reset-refused-[0-9]{1,17}\.json$/.test(name)).sort();
   if (refusals.length > 1000) stop('too many cleanup refusal observations.');
   for (const file of refusals) copyEvidence(file.slice(0, -5), file);
-  write('transactions.json', {
+  add('transactions.json', {
     schemaVersion: 1,
     kind: 'mandate-desk-live-transactions',
     network: proposal.network,
@@ -186,7 +200,7 @@ function main() {
     finalityCheckedAt: run.finality?.checkedAt ?? null,
     transactions
   });
-  write('run.json', {
+  add('run.json', {
     schemaVersion: 1,
     kind: 'mandate-desk-live-run',
     runId: run.runId,
@@ -203,9 +217,37 @@ function main() {
     cleanup: run.cleanup,
     finality: run.finality
   });
-  const sums = Object.fromEntries([...written.entries()].sort(([a], [b]) => a.localeCompare(b)));
-  write('SHA256SUMS.json', sums);
-  console.log(`Evidence written to ${path.relative(ROOT, output)} (${written.size} files).`);
+  const sums = Object.fromEntries([...files.entries()].map(([relative, file]) => [relative, sha256(Buffer.from(file.text, 'utf8'))]).sort(([a], [b]) => a.localeCompare(b)));
+  add('SHA256SUMS.json', sums);
+
+  // The closed field schema of each kind. The message names the files and the
+  // known places where an unknown field sits, never the unknown field's name or
+  // value, so nothing an evidence file carries is echoed.
+  for (const [relative, file] of files) {
+    const kind = evidenceKindOf(relative);
+    if (kind === null) stop(`${relative} has no evidence schema.`);
+    const outside = fieldsOutsideSchema(kind, file.value);
+    if (outside.length) stop(`${relative} carries ${outside.length} field(s) outside the ${kind} schema, under: ${[...new Set(outside)].slice(0, 10).join(', ')}.`);
+  }
+
+  // Written into a staging folder beside the target and renamed into place last.
+  const staging = boundedPath(path.join(path.dirname(output), `.${path.basename(output)}.partial-${randomUUID()}`));
+  try {
+    fs.mkdirSync(path.dirname(output), { recursive: true });
+    fs.mkdirSync(staging);
+    for (const [relative, file] of files) {
+      const target = boundedPath(path.join(staging, relative));
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, file.text, { flag: 'wx' });
+    }
+    fs.renameSync(staging, output);
+  } catch (error) {
+    let removed = true;
+    try { fs.rmSync(staging, { recursive: true, force: true }); } catch { removed = false; }
+    stop(`the package could not be written (${error?.code ?? 'error'}); no package was left at ${path.relative(ROOT, output)}` +
+      (removed ? '.' : `, and the staging folder ${path.relative(ROOT, staging)} could not be removed.`));
+  }
+  console.log(`Evidence written to ${path.relative(ROOT, output)} (${files.size} files).`);
 }
 
 main();

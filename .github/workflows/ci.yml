@@ -1,0 +1,26 @@
+name: ci
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # The suite runs on a fake chain and a fake gateway: no network, no wallet,
+    # no key and no secret, so this job has none. It runs on Windows only,
+    # because the live lock (src/live-lock.mjs) opens its files with an
+    # exclusive handle that the operating system enforces on Windows, the lock
+    # refuses to work elsewhere, and the lock tests assert that behaviour.
+    # package.json names Node.js 24 or later and declares no dependencies, so
+    # nothing is installed.
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      # package.json runs the same command as both npm test and npm run check.
+      - run: node tools/check-demo.mjs
