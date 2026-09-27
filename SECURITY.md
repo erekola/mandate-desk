@@ -14,7 +14,7 @@ The live Sepolia run of 15 September 2026 keeps the code identity it was approve
 
 The application runs on the owner's own computer and listens only on the loopback address. It has no remote authentication and no Internet-facing deployment mode. The public demo page is a static page that makes no API call and sends no transaction.
 
-Without `--live` the signing route is unavailable, and an execution attempt reports `SIGNING_ROUTE_UNAVAILABLE`. With `--live` the owner starts a separate signer process. That process decrypts the two test keystores and keeps the Brickken API key in its own memory. The repository holds no key, no wallet and no API key, and it holds no signed transaction.
+Without `--live` the signing route is unavailable, and an execution attempt reports `SIGNING_ROUTE_UNAVAILABLE`. With `--live` the owner starts a separate signer process. That process decrypts the two test keystores and keeps the Brickken API key in its own memory. The repository holds no live keystore, no live wallet and no API key, and it holds no signed transaction. Its tests use the publicly known Hardhat development keys.
 
 ## Trust boundary
 

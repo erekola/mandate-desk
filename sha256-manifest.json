@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-24",
+  "generatedAt": "2026-09-27",
   "algorithm": "sha256",
   "excludes": [
     "sha256-manifest.json"
@@ -34,13 +34,13 @@
     },
     {
       "path": "README.md",
-      "bytes": 15162,
-      "sha256": "8b69f97201a3d183f10c75c833b092466e36763a60e1e2102ea02c685191cdc2"
+      "bytes": 15436,
+      "sha256": "53ea07fec1da1fd38b2a72fc6af59fbfb4b20f4465611347a5e1b6e34f432ee7"
     },
     {
       "path": "SECURITY.md",
-      "bytes": 3094,
-      "sha256": "6e82290bda367e75702b995511d73b843745423ca4c0c60c02a028bf615a8d3c"
+      "bytes": 3168,
+      "sha256": "4e0599862291c6c041a500e2f3b20a09a476300abd54615ba411a8abb5efb6bc"
     },
     {
       "path": "ai-disclosure.md",
@@ -459,8 +459,8 @@
     },
     {
       "path": "third-party-notices.md",
-      "bytes": 1533,
-      "sha256": "b48047c00f2e4d35e96fd280b5bf75b99115e910ac820c93bd09fd897035edda"
+      "bytes": 6414,
+      "sha256": "ceebafb8bd253667d3fd375ab5a1cf5f1f37f0b46566095817bcb9ddcbbc433d"
     },
     {
       "path": "tools/check-demo.mjs",
@@ -504,8 +504,8 @@
     },
     {
       "path": "verification.md",
-      "bytes": 28476,
-      "sha256": "88b599a8d56728736f7764abf3d8aee13c49f1ce1faeaabbb54166501b8cfae2"
+      "bytes": 28544,
+      "sha256": "5cc2272393e707f786990eb29837e4feddf0fd52c034fe2b3d674f2c19e34485"
     },
     {
       "path": "verification/brickken-sandbox-2026-09-14/public-chain/action-setup-simulation.json",
