@@ -15,11 +15,12 @@ import { spawnSync } from 'node:child_process';
 import { ROOT } from '../src/store.mjs';
 import { BrickkenLiveWorkspace } from '../src/brickken-workspace.mjs';
 import { loadLiveProposal } from '../src/brickken-live-plan.mjs';
-import { LiveSignerClient, validSignerEndpoint } from '../src/brickken-live-adapter.mjs';
+import { LiveSignerClient, runLiveControl, validSignerEndpoint } from '../src/brickken-live-adapter.mjs';
 import { LIVE_LOCK_KIND, LiveLockError, acquireLiveLock, pathBindingProblem, readLockHolder } from '../src/live-lock.mjs';
 import { PROCESS_CODE_IDENTITY_SHA256 } from '../src/code-identity.mjs';
 import { EVIDENCE_SCHEMA_KINDS, evidenceKindOf, fieldsOutsideSchema } from '../src/brickken-live-evidence-schema.mjs';
 import { FakeRpc, FakeSepolia, FakeSignerGateway, createClock } from './live-fakes.mjs';
+import { evaluateLiveRunCompleteness } from '../src/brickken-live-completeness.mjs';
 
 // ---------------------------------------------------------------------------
 // Harness
@@ -353,4 +354,87 @@ test('hardening: the closed schema also covers the derived summary files and ref
   assert.deepEqual(fieldsOutsideSchema('control', { 'calls[]': { label: 'synthetic' } }), ['(root)']);
   assert.deepEqual(fieldsOutsideSchema('control', { calls: [{ 'result.ok': true }] }), ['calls[]']);
   assert.deepEqual(fieldsOutsideSchema('control', { '': 1 }), ['(root)']);
+});
+
+// ---------------------------------------------------------------------------
+// MD-01: a control binds to the mandate identity the run's own grant approved
+
+test('MD-01: control-cumulative-cap fails on mandate-matches-approved-grant when the mandate two agreeing RPCs read is not the one this run\'s grant approved, even though every cap probe still holds', async () => {
+  const address = digit => '0x' + digit.repeat(40);
+  const proposal = {
+    principal: address('1'), agent: address('2'), executor: address('3'), registry: address('4'),
+    token: { address: address('5') }, recipient: { address: address('6') },
+    limits: { maxTransactionValue: '10000', maxCumulativeValue: '15000' },
+    amounts: { execute: '10000', cumulativeAllowedProbe: '5000', cumulativeDeniedProbe: '6000' }
+  };
+  const clock = createClock();
+  const chain = new FakeSepolia({ proposal, clock, actionConfigured: true });
+  chain.state.allowance = 100000n;
+  chain.state.actionEnabled = true;
+  const approvedMandate = {
+    agent: proposal.agent, validFrom: String(chain.latest().timestamp - 60), validUntil: String(chain.latest().timestamp + 3600),
+    principal: proposal.principal, complianceProvider: address('7'), identityRef: '0x' + 'a'.repeat(64),
+    asset: proposal.token.address, maxTransactionValue: '5000', maxCumulativeValue: '100000', metadata: '0x' + '0'.repeat(64)
+  };
+  // The mandate actually on chain keeps every cap-relevant field the approved
+  // grant has (so the per-probe reads behave exactly as the approved grant
+  // would predict) but carries a different identityRef: a different mandate.
+  chain.state.mandate = { ...approvedMandate, identityRef: '0x' + 'b'.repeat(64), revoked: false, cumulativeUsed: '10000' };
+  chain.mine();
+  const rpcs = { primary: new FakeRpc(chain, 'primary'), secondary: new FakeRpc(chain, 'secondary') };
+  const mismatched = await runLiveControl({ proposal, rpcs, controlId: 'control-cumulative-cap', approvedMandate, now: () => clock.ms });
+  assert.equal(mismatched.passed, false);
+  const identityCondition = mismatched.conditions.find(item => item.id === 'mandate-matches-approved-grant');
+  assert.ok(identityCondition, JSON.stringify(mismatched.conditions));
+  assert.equal(identityCondition.holds, false);
+  // Every other condition, including both per-probe cap reads, still holds:
+  // the only thing wrong here is the mandate's identity, not its caps.
+  for (const condition of mismatched.conditions) {
+    if (condition.id !== 'mandate-matches-approved-grant') assert.equal(condition.holds, true, condition.id);
+  }
+  assert.ok(mismatched.calls.every(call => call.passed && call.secondaryAgrees));
+  // With the identityRef restored to match the approved grant, the same reads pass.
+  chain.state.mandate = { ...chain.state.mandate, identityRef: approvedMandate.identityRef };
+  chain.mine();
+  const matched = await runLiveControl({ proposal, rpcs, controlId: 'control-cumulative-cap', approvedMandate, now: () => clock.ms });
+  assert.equal(matched.passed, true);
+});
+
+// ---------------------------------------------------------------------------
+// MD-02: completeness validates required evidence content, not just presence
+
+test('MD-02: a required evidence file emptied to {} makes the run incomplete with EVIDENCE_FIELD_MISSING, and a receipt whose transaction hash does not match the journal is reported separately', async () => {
+  const env = environment();
+  const { owner, run } = await completedAndFinal(env);
+  const currentRun = JSON.parse(fs.readFileSync(path.join(env.dir, 'live', 'live-workspace.json'), 'utf8'))
+    .runs.find(item => item.runId === run.runId);
+  const evidenceDirectory = path.dirname(evidenceFile(env, run, 'run-approval'));
+
+  const baseline = evaluateLiveRunCompleteness({ run: currentRun, journal: owner.journal, evidenceDirectory });
+  assert.equal(baseline.complete, true, JSON.stringify(baseline.missing));
+
+  // Appendix B of the audit report: a required evidence file reduced to {}
+  // used to still satisfy the closed field schema, because that schema only
+  // ever rejected an unknown field, never demanded a known one be present.
+  const restoreFinality = editEvidence(env, run, 'finality', value => {
+    for (const key of Object.keys(value)) delete value[key];
+  });
+  const emptied = evaluateLiveRunCompleteness({ run: currentRun, journal: owner.journal, evidenceDirectory });
+  assert.equal(emptied.complete, false);
+  assert.ok(emptied.missing.some(code => code.startsWith('EVIDENCE_FIELD_MISSING:finality:')), JSON.stringify(emptied.missing));
+  restoreFinality();
+  assert.equal(evaluateLiveRunCompleteness({ run: currentRun, journal: owner.journal, evidenceDirectory }).complete, true);
+
+  // A receipt evidence file that is internally well-formed but names a
+  // different transaction hash than the journal recorded as signed for that
+  // step: the cross-check the report named, separate from the field-presence check.
+  const restoreReceipt = editEvidence(env, run, `${run.runId}_execute-receipt`, value => {
+    value.receipt.transactionHash = '0x' + 'ee'.repeat(32);
+  });
+  const mismatched = evaluateLiveRunCompleteness({ run: currentRun, journal: owner.journal, evidenceDirectory });
+  assert.equal(mismatched.complete, false);
+  assert.ok(mismatched.missing.includes('EVIDENCE_RECEIPT_HASH_MISMATCH:execute'), JSON.stringify(mismatched.missing));
+  assert.equal(mismatched.missing.some(code => code.startsWith('EVIDENCE_FIELD_MISSING:')), false, JSON.stringify(mismatched.missing));
+  restoreReceipt();
+  assert.equal(evaluateLiveRunCompleteness({ run: currentRun, journal: owner.journal, evidenceDirectory }).complete, true);
 });

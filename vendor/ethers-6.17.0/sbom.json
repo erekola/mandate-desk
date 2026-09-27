@@ -1,0 +1,95 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-09-27T00:00:00Z",
+    "component": {
+      "type": "library",
+      "bom-ref": "ethers@6.17.0",
+      "name": "ethers",
+      "version": "6.17.0",
+      "purl": "pkg:npm/ethers@6.17.0",
+      "description": "Vendored UMD bundle used by tools/live-signer.mjs and src/brickken-live-signer.mjs for offline transaction signing. It is not an npm dependency of this project: package.json declares none, and .github/dependabot.yml tracks only github-actions, so no automated updater or advisory feed sees this file or the libraries bundled inside it (MD-07)."
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "ethers@6.17.0",
+      "name": "ethers",
+      "version": "6.17.0",
+      "purl": "pkg:npm/ethers@6.17.0",
+      "hashes": [
+        { "alg": "SHA-256", "content": "532950515fd29ae9f7a21ceb2b68100815024d7944c3d5a92246d5b900bd703b" }
+      ],
+      "evidence": {
+        "occurrences": [
+          { "location": "vendor/ethers-6.17.0/ethers.umd.min.cjs" }
+        ]
+      },
+      "properties": [
+        {
+          "name": "mandate-desk:versionSource",
+          "value": "the literal string \"6.17.0\" is present in the minified bundle text, and vendor/ethers-6.17.0/artifact-manifest.json records this file's sha256 (matching the hash above) as extracted from package/dist/ethers.umd.min.js of the published ethers npm package. During the 2026-09-26 hostile audit this byte content was independently compared against the ethers-io/ethers.js GitHub release tag v6.17.0 (commit 3ea4c226dd0b3a074abf90748de9d11192027f4f) and matched byte for byte (526551 bytes)."
+        },
+        {
+          "name": "mandate-desk:advisoryStatus",
+          "value": "the ethers-io/ethers.js GitHub Security Advisories page reported no published advisories as of 2026-09-26; see ADVISORIES.md in this folder for how to recheck."
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "@noble/hashes@1.3.2",
+      "name": "@noble/hashes",
+      "version": "1.3.2",
+      "purl": "pkg:npm/%40noble/hashes@1.3.2",
+      "properties": [
+        {
+          "name": "mandate-desk:versionSource",
+          "value": "bundled transitively inside ethers.umd.min.cjs; the minified bundle carries no readable version string for this transitive dependency (grepped for x.y.z-shaped literals during this SBOM's own preparation: only ethers' own \"6.17.0\" was found). The version 1.3.2 is taken from the upstream ethers v6.17.0 release's own source map (dist/ethers.umd.js.map) and its package.json dependency list, read during the 2026-09-26 hostile audit against the official GitHub release. It has not been independently re-derived from bytes inside this repository, because that would need a network fetch of the upstream release, which this offline environment does not perform."
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "@noble/curves@1.2.0",
+      "name": "@noble/curves",
+      "version": "1.2.0",
+      "purl": "pkg:npm/%40noble/curves@1.2.0",
+      "properties": [
+        {
+          "name": "mandate-desk:versionSource",
+          "value": "bundled transitively inside ethers.umd.min.cjs (secp256k1 and its supporting modules); same provenance as @noble/hashes above: read from the upstream v6.17.0 release's source map and package.json during the 2026-09-26 audit, not independently re-derived offline in this repository."
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "@adraffy/ens-normalize@1.11.1",
+      "name": "@adraffy/ens-normalize",
+      "version": "1.11.1",
+      "purl": "pkg:npm/%40adraffy/ens-normalize@1.11.1",
+      "properties": [
+        {
+          "name": "mandate-desk:versionSource",
+          "value": "bundled transitively inside ethers.umd.min.cjs; same provenance as @noble/hashes above."
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "aes-js@4.0.0-beta.5",
+      "name": "aes-js",
+      "version": "4.0.0-beta.5",
+      "purl": "pkg:npm/aes-js@4.0.0-beta.5",
+      "properties": [
+        {
+          "name": "mandate-desk:versionSource",
+          "value": "bundled transitively inside ethers.umd.min.cjs, used by Wallet.fromEncryptedJson for keystore AES decryption; same provenance as @noble/hashes above (a beta version, pinned by the upstream ethers v6.17.0 release itself, not chosen by this project)."
+        }
+      ]
+    }
+  ]
+}

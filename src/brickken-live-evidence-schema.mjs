@@ -8,8 +8,7 @@
 // branches no test run produced, and checked against every evidence file the
 // test suite and the live run of 15 September 2026 wrote. A writer that gains
 // a field needs the same field here, or its package is refused.
-import { LIVE_CONTROL_IDS, LIVE_WRITE_STEPS } from './brickken-live-plan.mjs';
-import { STOP_DETAIL_KEYS } from './brickken-workspace.mjs';
+import { LIVE_CONTROL_IDS, LIVE_WRITE_STEPS, STOP_DETAIL_KEYS } from './brickken-live-plan.mjs';
 
 function under(prefix, paths) { return paths.map(item => `${prefix}.${item}`); }
 // Every listed path with its parents; "calls[].label" also admits the key "calls".
@@ -214,3 +213,86 @@ function sumsOutside(value) {
 }
 
 export const EVIDENCE_SCHEMA_KINDS = Object.freeze([...Object.keys(SCHEMAS), 'sums']);
+
+// ---------------------------------------------------------------------------
+// Required content, per kind (MD-02). fieldsOutsideSchema above only rejects a
+// field the writer never produces; on its own an empty object passes it for
+// every kind, because a closed schema of allowed paths states nothing about
+// which of those paths must be present. The lists below were read from the
+// writer of each kind (src/brickken-live-adapter.mjs, src/brickken-workspace.mjs)
+// and checked against the real evidence files of the 15 September 2026 live run
+// (verification/sepolia-live-c990e8a178b0/) and every fixture the test suite
+// writes; a field the writer always sets is required, one it sets only on some
+// branches (gitHead, apiTxId, x402Quote) is not. This is a completeness check,
+// not a second closed schema: a value can satisfy every requirement here and
+// still be rejected by fieldsOutsideSchema for a field outside its allowlist.
+function isPlainObject(value) { return value !== null && typeof value === 'object' && !Array.isArray(value); }
+function isNonEmptyArray(value) { return Array.isArray(value) && value.length > 0; }
+function isHexHash32(value) { return typeof value === 'string' && /^0x[0-9a-f]{64}$/.test(value); }
+function isSha256Hex(value) { return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value); }
+
+// Every listed key present and not null/undefined; "(root)" if value is not a
+// plain object at all, since no key of it can then be checked.
+function requireKeys(value, keys) {
+  if (!isPlainObject(value)) return ['(root):not-an-object'];
+  return keys.filter(key => !Object.hasOwn(value, key) || value[key] === undefined || value[key] === null).map(key => `${key}:missing`);
+}
+
+const REQUIRED_CONTENT = Object.freeze({
+  'run-approval': value => [
+    ...requireKeys(value, ['schemaVersion', 'kind', 'proposalHash', 'approvalSha256', 'network', 'chainId', 'createdAt',
+      'notAfter', 'signers', 'contracts', 'limits', 'amounts', 'writes', 'controls', 'preflight']),
+    ...(isNonEmptyArray(value?.writes) ? [] : ['writes:not-a-non-empty-array']),
+    ...(isNonEmptyArray(value?.controls) ? [] : ['controls:not-a-non-empty-array']),
+    ...(isPlainObject(value?.signers) && typeof value.signers.owner === 'string' && typeof value.signers.agent === 'string' ? [] : ['signers:missing-fields']),
+    ...(isPlainObject(value?.limits) && typeof value.limits.maxTransactionValue !== 'undefined' && typeof value.limits.maxCumulativeValue !== 'undefined' ? [] : ['limits:missing-fields'])
+  ],
+  preflight: value => [
+    ...requireKeys(value, ['schemaVersion', 'kind', 'observedAt', 'chainId', 'block', 'state', 'codeSha256', 'executorBindings']),
+    ...(isPlainObject(value?.block) && typeof value.block.number !== 'undefined' && typeof value.block.hash === 'string' ? [] : ['block:missing-fields']),
+    ...(isPlainObject(value?.state) && Object.hasOwn(value.state, 'mandate') ? [] : ['state:missing-mandate'])
+  ],
+  'code-identity': value => [
+    ...requireKeys(value, ['schemaVersion', 'kind', 'files', 'codeIdentitySha256', 'recordedAt']),
+    ...(isNonEmptyArray(value?.files) ? [] : ['files:not-a-non-empty-array']),
+    ...(isSha256Hex(value?.codeIdentitySha256) ? [] : ['codeIdentitySha256:not-a-sha256'])
+  ],
+  control: value => [
+    ...requireKeys(value, ['schemaVersion', 'kind', 'controlId', 'observedAt', 'block', 'calls', 'facts', 'conditions', 'passed', 'interpretation']),
+    ...(isPlainObject(value?.block) && typeof value.block.number !== 'undefined' && typeof value.block.hash === 'string' ? [] : ['block:missing-fields']),
+    ...(isNonEmptyArray(value?.calls) ? [] : ['calls:not-a-non-empty-array']),
+    ...(isNonEmptyArray(value?.conditions) ? [] : ['conditions:not-a-non-empty-array']),
+    ...(isPlainObject(value?.facts) && Object.hasOwn(value.facts, 'mandate') ? [] : ['facts:missing-mandate']),
+    ...(typeof value?.passed === 'boolean' ? [] : ['passed:not-a-boolean'])
+  ],
+  finality: value => [
+    ...requireKeys(value, ['checkedAt', 'entries', 'allFinalized']),
+    ...(Array.isArray(value?.entries) ? [] : ['entries:not-an-array']),
+    ...(typeof value?.allFinalized === 'boolean' ? [] : ['allFinalized:not-a-boolean'])
+  ],
+  'step-preparation': value => [
+    ...requireKeys(value, ['operationId', 'step', 'transaction', 'preparedAt', 'observedBlock']),
+    ...(isPlainObject(value?.transaction) && typeof value.transaction.to === 'string' && typeof value.transaction.data === 'string' &&
+      typeof value.transaction.nonce !== 'undefined' ? [] : ['transaction:missing-fields'])
+  ],
+  'step-receipt': value => [
+    ...requireKeys(value, ['operationId', 'step', 'receipt', 'confirmations']),
+    ...(isPlainObject(value?.receipt) && isHexHash32(value.receipt.transactionHash) && typeof value.receipt.status !== 'undefined' &&
+      typeof value.receipt.blockNumber !== 'undefined' && typeof value.receipt.blockHash === 'string' ? [] : ['receipt:missing-fields'])
+  ],
+  'step-postcheck': value => [
+    ...requireKeys(value, ['operationId', 'step', 'envelope', 'report', 'twoSourceObservation']),
+    ...(isPlainObject(value?.envelope) && typeof value.envelope.observedAt === 'string' && isPlainObject(value.envelope.receipt) ? [] : ['envelope:missing-fields']),
+    ...(isPlainObject(value?.report) && typeof value.report.verified === 'boolean' && isHexHash32(value.report.transactionHash) ? [] : ['report:missing-fields'])
+  ]
+});
+
+// Every problem with the required content of `kind`, or [] if `value` has
+// every field its writer always produces with a value of the expected shape.
+// A kind with no entry above (replay, cleanup, transactions, run, the
+// cleanup-* kinds and sums) is not covered by this check; fieldsOutsideSchema
+// still applies to all of them.
+export function fieldsMissingFromSchema(kind, value) {
+  const check = REQUIRED_CONTENT[kind];
+  return check ? check(value) : [];
+}

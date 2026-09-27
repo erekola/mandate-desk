@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { LIVE_CONTROL_IDS, LIVE_WRITE_STEPS } from './brickken-live-plan.mjs';
 import { validateCodeIdentityEvidence } from './code-identity.mjs';
+import { fieldsMissingFromSchema } from './brickken-live-evidence-schema.mjs';
 
 export const LIVE_BASE_EVIDENCE_FILES = Object.freeze(['run-approval', 'preflight-plan', 'preflight-start', 'code-identity', 'code-identity-start', 'finality']);
 
@@ -28,6 +29,22 @@ export function requiredEvidencePackageMembers(run) {
 
 function uintEqual(left, right) {
   try { return BigInt(left) === BigInt(right); } catch { return false; }
+}
+
+// The content-check kind of a required evidence file, from the base name
+// evaluateLiveRunCompleteness uses for it (LIVE_BASE_EVIDENCE_FILES entries,
+// a control ID, or "<operationId>-preparation|receipt|postcheck"). null for a
+// name fieldsMissingFromSchema does not cover.
+function evidenceContentKind(name) {
+  if (name === 'run-approval') return 'run-approval';
+  if (name === 'preflight-plan' || name === 'preflight-start') return 'preflight';
+  if (name === 'code-identity' || name === 'code-identity-start') return 'code-identity';
+  if (name === 'finality') return 'finality';
+  if (LIVE_CONTROL_IDS.includes(name)) return 'control';
+  if (name.endsWith('-preparation')) return 'step-preparation';
+  if (name.endsWith('-receipt')) return 'step-receipt';
+  if (name.endsWith('-postcheck')) return 'step-postcheck';
+  return null;
 }
 
 // run: a stored live run; journal: an object with find(operationId);
@@ -85,7 +102,28 @@ export function evaluateLiveRunCompleteness({ run, journal, evidenceDirectory = 
       for (const suffix of ['preparation', 'receipt', 'postcheck']) required.push(`${run.steps[step].operationId}-${suffix}`);
     }
     for (const name of required) {
-      if (!fs.existsSync(path.join(evidenceDirectory, `${name}.json`))) note(`EVIDENCE_FILE_MISSING:${name}`);
+      const file = path.join(evidenceDirectory, `${name}.json`);
+      if (!fs.existsSync(file)) { note(`EVIDENCE_FILE_MISSING:${name}`); continue; }
+      const kind = evidenceContentKind(name);
+      if (kind === null) continue;
+      let parsed;
+      try { parsed = JSON.parse(fs.readFileSync(file, 'utf8')); }
+      catch { note(`EVIDENCE_FILE_INVALID:${name}`); continue; }
+      const problems = fieldsMissingFromSchema(kind, parsed);
+      if (problems.length) note(`EVIDENCE_FIELD_MISSING:${name}:${problems[0]}`);
+    }
+    // The receipt evidence names the same transaction the journal recorded as
+    // signed for this step; a receipt content that is internally well-formed
+    // but names a different hash is still wrong (MD-02's named cross-check).
+    for (const step of LIVE_WRITE_STEPS) {
+      const record = records[step];
+      if (!record?.signed) continue;
+      const file = path.join(evidenceDirectory, `${record.operationId}-receipt.json`);
+      let parsed;
+      try { parsed = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { continue; }
+      if (typeof parsed?.receipt?.transactionHash === 'string' && parsed.receipt.transactionHash !== record.signed.ethereumTransactionHash) {
+        note(`EVIDENCE_RECEIPT_HASH_MISMATCH:${step}`);
+      }
     }
     // Existence is not enough for the identity documents: each is validated by
     // content and its stable hash must equal the identity the run was approved for.

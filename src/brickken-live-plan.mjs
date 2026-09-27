@@ -625,3 +625,17 @@ export function validateRunApproval(value, proposalInput) {
   if (canonicalJson(value) !== canonicalJson(rebuilt)) fail('APPROVAL_INTEGRITY');
   return rebuilt;
 }
+
+// Every key a live-run stop record's `details` may carry, shared by the
+// workspace (which builds them) and the evidence schema (which lists their
+// nested shapes for the exported "run".stop.details path). Kept here, a layer
+// below both, so neither importing the other creates a cycle.
+export const STOP_DETAIL_KEYS = Object.freeze([
+  'layer', 'step', 'check', 'rpcCode', 'status', 'signerStatus', 'apiErrorCode', 'transactionHash', 'nonce', 'field',
+  'endpoint', 'operationId', 'controlId', 'blockers', 'revert', 'cause', 'method', 'baseFeePerGas', 'estimate',
+  'balanceWei', 'steps', 'blockHash', 'purpose', 'notAfter', 'attempts', 'journalState', 'backoffUntil', 'lockFile',
+  'controlIds', 'missing', 'to', 'from', 'reason', 'required', 'confirmationsPrimary', 'confirmationsSecondary',
+  'dependencyOperationId', 'codeIdentitySha256', 'processCodeIdentitySha256', 'diskCodeIdentitySha256', 'phase',
+  'platform', 'packageDirectory', 'attributed', 'mandate', 'tracked', 'allowance', 'expectedFromRun', 'approveResetVerified', 'member',
+  'originReason'
+]);

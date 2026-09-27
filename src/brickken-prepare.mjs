@@ -182,11 +182,57 @@ function checkExecutionModeEcho(json) {
 // shape, and the first live attempt received a form that was not an object),
 // kept out of the transaction and the preparation hash, never acted on and
 // never paid (Tek-411). A present key with the JSON value null reads as null.
+// The x402 quote's typed, bounded shape: the payment-requirement scalar
+// fields the API document and the sandbox response of 2026-09-15 use, and the
+// nested "extra" object's own scalar fields. A field name outside these lists,
+// a value that is not a bounded string/number/boolean, or an "extra" that is
+// not itself a plain object is refused instead of forwarded: the closed
+// export schema only checks field NAMES, so an opaque string, a JSON-encoded
+// string or a nested array of strings under a known name used to pass through
+// unexamined (MD-03). This is the boundary that keeps that from happening;
+// nothing past this point ever sees the untyped quote again.
+const X402_SCALAR_KEYS = ['scheme', 'network', 'amount', 'maxAmountRequired', 'asset', 'payTo', 'resource', 'description', 'mimeType', 'maxTimeoutSeconds'];
+const X402_EXTRA_KEYS = ['name', 'version', 'assetTransferMethod', 'chainId', 'displayPrice', 'operationChainId', 'paymentChainId', 'routeKey', 'tokenSymbol'];
+const MAX_X402_STRING_LENGTH = 512;
+const MAX_X402_QUOTE_ITEMS = 8;
+function boundedX402Scalar(value) {
+  return (typeof value === 'string' && value.length <= MAX_X402_STRING_LENGTH) ||
+    (typeof value === 'number' && Number.isFinite(value)) || typeof value === 'boolean';
+}
+function sanitizeX402Extra(extra) {
+  if (extra === undefined) return undefined;
+  if (!plain(extra)) fail('X402_QUOTE_SHAPE');
+  const out = {};
+  for (const key of Object.keys(extra)) {
+    if (!X402_EXTRA_KEYS.includes(key) || !boundedX402Scalar(extra[key])) fail('X402_QUOTE_SHAPE');
+    out[key] = extra[key];
+  }
+  return Object.freeze(out);
+}
+function sanitizeX402Requirement(item) {
+  if (!plain(item)) fail('X402_QUOTE_SHAPE');
+  const out = {};
+  for (const key of Object.keys(item)) {
+    if (key === 'extra') { out.extra = sanitizeX402Extra(item.extra); continue; }
+    if (!X402_SCALAR_KEYS.includes(key) || !boundedX402Scalar(item[key])) fail('X402_QUOTE_SHAPE');
+    out[key] = item[key];
+  }
+  return Object.freeze(out);
+}
+// One requirement object, or a short array of them (the sandbox sent three,
+// one per accepted asset, on 2026-09-15); anything else is refused.
+function sanitizeX402Quote(quote) {
+  if (Array.isArray(quote)) {
+    if (quote.length === 0 || quote.length > MAX_X402_QUOTE_ITEMS) fail('X402_QUOTE_SHAPE');
+    return Object.freeze(quote.map(sanitizeX402Requirement));
+  }
+  return sanitizeX402Requirement(quote);
+}
 function readX402Quote(container) {
   if (!Object.hasOwn(container, 'x402Requirements')) return null;
   const quote = container.x402Requirements;
   if (quote === null || quote === undefined) return null;
-  return deepFreeze(JSON.parse(JSON.stringify(quote)));
+  return sanitizeX402Quote(JSON.parse(JSON.stringify(quote)));
 }
 // The quote can sit beside the data envelope and inside it. Equal values are
 // one quote. Two different non-null quotes in one response are refused with
@@ -209,13 +255,6 @@ function sameJson(left, right) {
     return keys.length === Object.keys(right).length && keys.every(key => Object.hasOwn(right, key) && sameJson(left[key], right[key]));
   }
   return false;
-}
-function deepFreeze(value) {
-  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
-    Object.freeze(value);
-    for (const child of Object.values(value)) deepFreeze(child);
-  }
-  return value;
 }
 
 // Generic prepare documents a root container; RAMS documents a data envelope.

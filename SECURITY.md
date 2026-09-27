@@ -28,6 +28,10 @@ The signer endpoint record must match its exact format and name the code identit
 
 `tools/export-live-evidence.mjs` publishes the evidence of one run under `verification/`. Every JSON file in the package is checked against a closed field schema for its kind, nested objects and array elements included, and a field outside the schema stops the export. The export also refuses a `signedTransaction` field anywhere and any member that is not a bounded regular file. It builds and checks the whole package before the folder exists, so a refused export leaves no partial package behind.
 
+## Vendored signing dependency
+
+`vendor/ethers-6.17.0/` is a vendored UMD bundle, not an npm dependency: `package.json` declares none, and `.github/dependabot.yml` tracks only GitHub Actions, so neither `npm audit` nor Dependabot ever inventories it or the libraries bundled inside it. `vendor/ethers-6.17.0/sbom.json` lists its components and versions with their provenance, and `vendor/ethers-6.17.0/ADVISORIES.md` says how to check each one against a public advisory database by hand.
+
 ## Tests
 
 GitHub Actions runs `node tools/check-demo.mjs` on Windows for every push and pull request. The job has read-only access to the repository and no secrets. The suite uses a fake chain and a fake gateway and makes no network call.

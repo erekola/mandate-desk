@@ -539,6 +539,16 @@ test('tools/live-signer.mjs binds 127.0.0.1, its request handler in src/live-sig
   assert.ok(consoleLines.every(line => !line.includes('apiKey')), 'the apiKey variable must never reach a console call');
 });
 
+test('MD-04: writeFileAtomic writes the owner and agent bearer tokens, and the endpoint file, with owner-only mode', () => {
+  const source = fs.readFileSync(new URL('../tools/live-signer.mjs', import.meta.url), 'utf8');
+  const helper = /function writeFileAtomic\(file, text\) \{[\s\S]*?fs\.writeFileSync\(temporary, text, \{ flag: 'w', mode: 0o600 \}\);[\s\S]*?\n\}/;
+  assert.match(source, helper, 'writeFileAtomic must pass mode: 0o600 to fs.writeFileSync');
+  // Every file main() writes through it: both bearer tokens and the endpoint file.
+  for (const call of [/writeFileAtomic\(tokenFiles\.owner, tokens\.owner\)/, /writeFileAtomic\(tokenFiles\.agent, tokens\.agent\)/, /writeFileAtomic\(endpointFile,/]) {
+    assert.match(source, call);
+  }
+});
+
 test('describeJsonShape reports key names and JSON types two levels deep and never a value', () => {
   const shape = describeJsonShape(JSON.stringify({ data: { transactions: { from: '0xsecret', nonce: 7 }, txId: 'secret-id', x402Requirements: [{ payTo: '0xsecret' }] }, ok: true }));
   assert.deepEqual(shape, { data: { transactions: 'object(2)', txId: 'string', x402Requirements: 'array(1)' }, ok: 'boolean' });

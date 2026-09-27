@@ -460,13 +460,15 @@ test('parseRamsPrepareResponse reads JSON x402Requirements at the root or inside
     assert.equal(Object.hasOwn(parsed.transaction, 'x402Requirements'), false);
   }
   assert.equal(parseRamsPrepareResponse(JSON.stringify({ data: inner })).x402Quote, null);
-  // The documentation does not fix the quote's shape: a list, a string, a number or null are read as data too.
+  // The documentation does not fix the quote's shape, but every field it reads out is a known
+  // name carrying a bounded scalar (MD-03): a list of well-typed requirement objects and null
+  // are read as data; a bare string or number in place of the quote is refused instead.
   const list = [{ scheme: 'exact', network: 'eip155:84532' }];
   const listed = parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: list } }));
   assert.deepEqual(listed.x402Quote, list);
   assert.ok(Object.isFrozen(listed.x402Quote) && Object.isFrozen(listed.x402Quote[0]));
-  assert.equal(parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: 'pay' } })).x402Quote, 'pay');
-  assert.equal(parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: 1 } })).x402Quote, 1);
+  assert.throws(() => parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: 'pay' } })), { code: 'X402_QUOTE_SHAPE' });
+  assert.throws(() => parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: 1 } })), { code: 'X402_QUOTE_SHAPE' });
   assert.equal(parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: null } })).x402Quote, null);
 });
 
@@ -634,7 +636,10 @@ test('hardening: parseRamsPrepareResponse keeps one quote when the quotes beside
   assert.equal(Object.hasOwn(same.transaction, 'x402Requirements'), false);
   assert.throws(() => parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: quote }, x402Requirements: [{ ...quote[0], maxAmountRequired: '1' }] })),
     error => error instanceof BrickkenPrepareError && error.code === 'QUOTE_CONFLICT');
-  assert.throws(() => parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: 'pay' }, x402Requirements: quote })), { code: 'QUOTE_CONFLICT' });
+  // A quote that is not itself typed and bounded (a free-text string in place of the
+  // requirement objects) is refused with the more specific X402_QUOTE_SHAPE before the
+  // two sides are ever compared for a conflict (MD-03).
+  assert.throws(() => parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: 'pay' }, x402Requirements: quote })), { code: 'X402_QUOTE_SHAPE' });
   // Null beside a quote is absent metadata, as in round 5.
   assert.deepEqual(parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: quote }, x402Requirements: null })).x402Quote, quote);
   assert.deepEqual(parseRamsPrepareResponse(JSON.stringify({ data: { ...inner, x402Requirements: null }, x402Requirements: quote })).x402Quote, quote);

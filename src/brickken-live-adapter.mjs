@@ -412,7 +412,27 @@ function evaluateCall(proposal, call, result) {
   return false;
 }
 
-function controlConditions(proposal, controlId, facts, timestamp) {
+// The mandate a grant calldata of the reviewed plan creates, by identity field.
+// Shared with brickken-workspace.mjs so every read of an approved grant's
+// identity (a live control, cleanup, or the owner revocation guard) uses the
+// same decoding.
+export function grantMandateFromCalldata(data) {
+  const word = index => data.slice(10 + index * 64, 10 + (index + 1) * 64);
+  const addressOf = index => '0x' + word(index).slice(24);
+  const uintOf = index => BigInt('0x' + word(index)).toString();
+  return {
+    agent: addressOf(2), validFrom: uintOf(3), validUntil: uintOf(4), principal: addressOf(5), complianceProvider: addressOf(6),
+    identityRef: '0x' + word(7), asset: addressOf(8), maxTransactionValue: uintOf(9), maxCumulativeValue: uintOf(10), metadata: '0x' + word(11)
+  };
+}
+// Every identity field of `planned` (a grant mandate) must equal the same
+// field read from chain; fields the mandate carries but `planned` does not
+// (cumulativeUsed, revoked) are not compared here.
+export function sameMandateIdentity(mandate, planned) {
+  return Object.keys(planned).every(key => mandate[key] === planned[key]);
+}
+
+function controlConditions(proposal, controlId, facts, timestamp, approvedMandate) {
   const m = facts.mandate;
   const used = m ? BigInt(m.cumulativeUsed) : 0n;
   const maxTx = BigInt(proposal.limits.maxTransactionValue);
@@ -420,8 +440,14 @@ function controlConditions(proposal, controlId, facts, timestamp) {
   const conditions = [];
   const hold = (id, value) => conditions.push({ id, holds: Boolean(value) });
   const inWindow = m !== null && BigInt(m.validFrom) <= BigInt(timestamp) && BigInt(timestamp) < BigInt(m.validUntil);
+  // Every control binds to the mandate identity the approved grant carries
+  // (asset, complianceProvider, identityRef, both caps, validity window, agent,
+  // principal, metadata), not only to proposal.limits: two agreeing RPCs can
+  // still agree on a mandate that is not the one this run's grant created (MD-01).
+  const matchesApprovedGrant = m !== null && approvedMandate !== null && sameMandateIdentity(m, approvedMandate);
   const common = () => {
     hold('mandate-exists', m !== null);
+    hold('mandate-matches-approved-grant', matchesApprovedGrant);
     hold('within-validity-window', inWindow);
     hold('agent-not-frozen', facts.agentFrozen === false);
     hold('action-enabled', facts.actionEnabled === true);
@@ -474,7 +500,7 @@ const CONTROL_INTERPRETATION = Object.freeze({
   'control-after-revoke': 'The same calldata, sender, target and value revert with CannotExecute after revocation while balance, allowance, caps, validity, freeze and action checks still hold, so the denial is attributed to revocation. No rejected transaction was sent.'
 });
 
-export async function runLiveControl({ proposal, rpcs, controlId, now = () => Date.now(), sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) }) {
+export async function runLiveControl({ proposal, rpcs, controlId, approvedMandate = null, now = () => Date.now(), sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) }) {
   const { primary, secondary } = rpcs;
   const block = await primary.getBlock('latest');
   await waitForBlock(secondary, block.hash, sleep);
@@ -495,7 +521,7 @@ export async function runLiveControl({ proposal, rpcs, controlId, now = () => Da
   }
   const facts = await readStateSet(proposal, primary, ref);
   const secondaryFacts = await readStateSet(proposal, secondary, ref);
-  const conditions = controlConditions(proposal, controlId, facts, block.timestamp);
+  const conditions = controlConditions(proposal, controlId, facts, block.timestamp, approvedMandate);
   const allowedLegPassed = results.filter(item => item.expect === 'success' || item.expect === 'true').every(item => item.passed);
   const passed = results.every(item => item.passed && item.secondaryAgrees) && conditions.every(item => item.holds) &&
     canonicalJson(facts) === canonicalJson(secondaryFacts);

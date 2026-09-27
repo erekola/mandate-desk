@@ -944,3 +944,47 @@ test('ADV-4: a stop keeps the to and from addresses of a failed read and drops e
   assert.equal(Object.hasOwn(stopped.stop.details, 'headers'), false);
   assert.equal(signedCount(env, 'setAction'), 0);
 });
+
+// ---------------------------------------------------------------------------
+// MD-08: a normal owner revocation refuses to sign against a mandate this
+// run's own grant did not create, even when the pre-revocation controls were
+// already marked passed on an earlier attempt and are therefore not re-run.
+
+test('MD-08: owner revocation stops with OWNER_REVOKE_FOREIGN_MANDATE and never signs when the mandate on chain differs from this run\'s approved grant, after its pre-revocation controls already passed', async () => {
+  const env = environment();
+  const { owner, run } = await setupToAwaitingAgent(env);
+  assert.equal((await driveAgentExecute(agentOf(env), opId(run, 'execute'))).execute.status, 'verified');
+  assert.equal(runView(owner).status, 'awaiting-owner-revocation');
+
+  // A mandate that keeps the real grant's identity in every field except
+  // identityRef: a normal recheck of the two pre-revocation controls would
+  // now fail on mandate-matches-approved-grant (MD-01), but here they are
+  // written directly as already observed and passed, as an earlier attempt
+  // under this same run would have left them, at the current real block so
+  // the canonicity recheck that runs before them does not invalidate them.
+  const before = env.chain.state.mandate;
+  env.chain.state.mandate = { ...before, identityRef: '0x' + 'b'.repeat(64) };
+  env.chain.mine();
+  const block = env.chain.latest();
+  rewriteWorkspace(env, state => {
+    const observedAt = new Date(env.clock.ms).toISOString();
+    for (const controlId of ['control-cumulative-cap', 'control-before-revoke']) {
+      state.runs[0].controls[controlId] = {
+        observed: true, passed: true, canonical: true,
+        blockNumber: String(block.number), blockHash: block.hash, observedAt,
+        interpretation: 'stubbed as already passed by an earlier attempt, for this regression test only'
+      };
+    }
+  });
+
+  await owner.startOwnerRevocation({ runId: run.runId });
+  await owner.whenIdle(run.runId);
+  const stopped = runView(owner);
+  assert.equal(stopped.status, 'stopped', JSON.stringify(stopped.stop));
+  assert.equal(stopped.stop.code, 'OWNER_REVOKE_FOREIGN_MANDATE', JSON.stringify(stopped.stop));
+  assert.equal(env.chain.state.mandate.revoked, false);
+  assert.equal(env.chain.state.mandate.identityRef, '0x' + 'b'.repeat(64));
+  assert.equal(signedCount(env, 'revoke'), 0);
+  assert.equal(journalOf(env).find(opId(run, 'revoke')), null);
+});
+

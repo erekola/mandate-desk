@@ -51,6 +51,7 @@ import {
   LIVE_STEP_ROUTE,
   LIVE_STEP_SIGNER,
   LIVE_WRITE_STEPS,
+  STOP_DETAIL_KEYS,
   buildRunApproval,
   decodeBoolReturn,
   decodeMandateReturn,
@@ -71,8 +72,10 @@ import {
   checkRunFinality,
   classifyLiveError,
   createLiveRpcs,
+  grantMandateFromCalldata,
   readLivePreflight,
-  runLiveControl
+  runLiveControl,
+  sameMandateIdentity
 } from './brickken-live-adapter.mjs';
 import { LiveLockError, acquireLiveLock } from './live-lock.mjs';
 import { evaluateLiveRunCompleteness, requiredEvidencePackageMembers } from './brickken-live-completeness.mjs';
@@ -693,15 +696,6 @@ const LIVE_RUN_KEYS = [
 // Added after the first live workspace files existed; a run without it still validates.
 const LIVE_RUN_OPTIONAL_KEYS = ['codeIdentitySha256'];
 const EXPLORER_TX = 'https://sepolia.etherscan.io/tx/';
-export const STOP_DETAIL_KEYS = Object.freeze([
-  'layer', 'step', 'check', 'rpcCode', 'status', 'signerStatus', 'apiErrorCode', 'transactionHash', 'nonce', 'field',
-  'endpoint', 'operationId', 'controlId', 'blockers', 'revert', 'cause', 'method', 'baseFeePerGas', 'estimate',
-  'balanceWei', 'steps', 'blockHash', 'purpose', 'notAfter', 'attempts', 'journalState', 'backoffUntil', 'lockFile',
-  'controlIds', 'missing', 'to', 'from', 'reason', 'required', 'confirmationsPrimary', 'confirmationsSecondary',
-  'dependencyOperationId', 'codeIdentitySha256', 'processCodeIdentitySha256', 'diskCodeIdentitySha256', 'phase',
-  'platform', 'packageDirectory', 'attributed', 'mandate', 'tracked', 'allowance', 'expectedFromRun', 'approveResetVerified', 'member',
-  'originReason'
-]);
 // Why a recording binding refuses an exported package (R2-F04). One code, one
 // reason field, so a caller reads the same failure whether a member is damaged,
 // a member is missing or the package describes an earlier state of the run.
@@ -731,19 +725,6 @@ function isoAt(milliseconds) { return new Date(milliseconds).toISOString(); }
 function identityNow(recordedAt) {
   const identity = computeCodeIdentity();
   return { codeIdentitySha256: identity.codeIdentitySha256, evidence: codeIdentityEvidence(identity, { recordedAt, gitHead: readGitHead() }) };
-}
-// The mandate a grant calldata of the reviewed plan creates, by identity field.
-function grantMandateFromCalldata(data) {
-  const word = index => data.slice(10 + index * 64, 10 + (index + 1) * 64);
-  const addressOf = index => '0x' + word(index).slice(24);
-  const uintOf = index => BigInt('0x' + word(index)).toString();
-  return {
-    agent: addressOf(2), validFrom: uintOf(3), validUntil: uintOf(4), principal: addressOf(5), complianceProvider: addressOf(6),
-    identityRef: '0x' + word(7), asset: addressOf(8), maxTransactionValue: uintOf(9), maxCumulativeValue: uintOf(10), metadata: '0x' + word(11)
-  };
-}
-function sameMandateIdentity(mandate, planned) {
-  return Object.keys(planned).every(key => mandate[key] === planned[key]);
 }
 // Maps a live lock refusal to the workspace code of the file it concerns.
 function lockFailure(error, prefix) {
@@ -1395,6 +1376,12 @@ export class BrickkenLiveWorkspace {
       if (this.journal.find(run.steps.revoke.operationId)?.signed) fail('CONTROL_ORDER', 'The pre-revocation controls must run before revoke.');
       await this.#control(runId, controlId, lease);
     }
+    // A control observed and marked passed on an earlier attempt is not
+    // re-read here (the loop above skips it), so this is a separate,
+    // unconditional check of the mandate identity right before a new revoke
+    // signature is requested: the same guard #cleanup applies before its own
+    // revoke, with its own code (MD-08).
+    if (!this.journal.find(run.steps.revoke.operationId)?.signed) await this.#requireApprovedMandateOnChain(runId, 'OWNER_REVOKE_FOREIGN_MANDATE');
     await this.#advanceUntilDone(executor, runId, 'revoke');
     await this.#recheckAndReconfirm(executor, runId);
     if (!this.#run(runId).controls['control-after-revoke']?.passed) {
@@ -1826,9 +1813,19 @@ export class BrickkenLiveWorkspace {
     }
   }
 
+  // The grant identity this run's own signed grant transaction created, or
+  // null before a grant is signed. Every control binds to this identity so a
+  // read-only pass never credits a different mandate that happens to satisfy
+  // the same cap probes (MD-01).
+  #approvedGrantMandate(runId) {
+    const grantRecord = this.journal.find(this.#run(runId).steps.grant.operationId);
+    return grantRecord?.signed ? grantMandateFromCalldata(grantRecord.transaction.data) : null;
+  }
+
   async #control(runId, controlId, lease = null) {
     this.#requireLease(lease);
-    const control = await runLiveControl({ proposal: this.proposal, rpcs: this.rpcs, controlId, now: this.nowMs, sleep: this.sleep });
+    const approvedMandate = this.#approvedGrantMandate(runId);
+    const control = await runLiveControl({ proposal: this.proposal, rpcs: this.rpcs, controlId, approvedMandate, now: this.nowMs, sleep: this.sleep });
     this.#evidence(runId, controlId, control);
     this.#update(runId, item => {
       item.controls[controlId] = {
@@ -1861,6 +1858,20 @@ export class BrickkenLiveWorkspace {
     const [a, b] = await Promise.all([read(primary), read(secondary)]);
     if (canonicalJson(a) !== canonicalJson(b)) fail('SOURCE_STATE_DISAGREEMENT', 'The two read sources disagree on the mandate or the allowance at the same block.', { blockHash: block.hash });
     return { block: { number: block.number, hash: block.hash }, mandate: a.mandate, allowance: a.allowance };
+  }
+
+  // Refuses to proceed unless the mandate now on chain still carries the
+  // identity this run's own signed grant created. Used right before a new
+  // owner revoke signature is requested (MD-08); #cleanup makes the same
+  // comparison with its own code, CLEANUP_FOREIGN_MANDATE.
+  async #requireApprovedMandateOnChain(runId, code) {
+    const plannedMandate = this.#approvedGrantMandate(runId);
+    const reads = await this.#mandateAndAllowance();
+    const sameIdentity = plannedMandate !== null && reads.mandate !== null && sameMandateIdentity(reads.mandate, plannedMandate);
+    if (!sameIdentity) {
+      this.#evidence(runId, `${code.toLowerCase().replace(/_/g, '-')}-${this.nowMs()}`, { mandate: reads.mandate, plannedMandate, block: reads.block, at: isoAt(this.nowMs()) });
+      fail(code, 'The mandate now on chain is not the one this run granted, so the step stops before requesting a new signature. The evidence is kept; the mandate needs a separate decision.', { blockHash: reads.block.hash });
+    }
   }
 
   async #recordReplay(runId, record) {

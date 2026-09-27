@@ -150,16 +150,21 @@ test('ambiguous containers, errors, partial objects and invalid batch identifier
   for (const txId of ['', 'a'.repeat(129), '../relative', 'line\nbreak', 1, null]) assert.throws(() => check({ ...response, txId }));
 });
 
-test('an x402Requirements quote in any documented position is read as data and accepts JSON values without changing the transaction', () => {
+test('an x402Requirements quote in any documented position is read as data, typed and bounded, without changing the transaction', () => {
   const { response, check } = fixture();
   const quote = { scheme: 'exact', network: 'eip155:84532', asset: 'USDC', maxAmountRequired: '250000' };
   for (const body of [{ ...response, x402Requirements: quote }, { data: response, x402Requirements: quote },
-    { data: { ...response, x402Requirements: quote } }]) {
+    { data: { ...response, x402Requirements: quote } }, { ...response, x402Requirements: [{ scheme: 'exact' }] }]) {
     assert.doesNotThrow(() => check(body));
   }
-  // The documentation does not fix the quote's shape; every JSON form is data.
-  for (const other of ['pay', [{ scheme: 'exact' }], null, 1, true]) {
-    assert.doesNotThrow(() => check({ ...response, x402Requirements: other }), String(other));
+  // A null quote is absent metadata, not a shape to validate.
+  assert.doesNotThrow(() => check({ ...response, x402Requirements: null }));
+  // The documentation does not fix the quote's shape, but every field the parser reads out
+  // is a known name carrying a bounded scalar (MD-03): an opaque scalar in place of the
+  // quote itself, an oversized string, or a wrong-shaped "extra" is refused, not forwarded.
+  for (const other of ['pay', 1, true, { extra: 'not-an-object' }, { scheme: 'x'.repeat(600) },
+    [{ scheme: 'exact' }, { scheme: 'exact' }, 'pay']]) {
+    assert.throws(() => check({ ...response, x402Requirements: other }), { code: 'X402_QUOTE_SHAPE' }, JSON.stringify(other));
   }
 });
 
@@ -251,11 +256,25 @@ test('hardening: a quote beside and inside the data envelope is one quote when t
   const reordered = { maxAmountRequired: '250000', asset: 'USDC', network: 'eip155:84532', scheme: 'exact' };
   assert.deepEqual(check({ data: { ...response, x402Requirements: quote }, x402Requirements: reordered }), check({ data: response }));
   assert.deepEqual(check({ data: { ...response, x402Requirements: [quote] }, x402Requirements: [quote] }), check({ data: response }));
-  for (const [outer, inner] of [[quote, { ...quote, maxAmountRequired: '1' }], [[quote], quote], ['pay', 'pay later'], [1, 2],
-    [quote, { ...quote, extra: true }], [[quote], [quote, quote]]]) {
+  for (const [outer, inner] of [[quote, { ...quote, maxAmountRequired: '1' }], [[quote], quote], [[quote], [quote, quote]]]) {
     assert.throws(() => check({ data: { ...response, x402Requirements: inner }, x402Requirements: outer }), { code: 'QUOTE_CONFLICT' }, JSON.stringify([outer, inner]));
   }
   // A null quote on one side is no quote, so the other side stands alone.
   assert.doesNotThrow(() => check({ data: { ...response, x402Requirements: quote }, x402Requirements: null }));
   assert.doesNotThrow(() => check({ data: { ...response, x402Requirements: null }, x402Requirements: quote }));
+});
+
+test('hardening: a quote whose shape is not typed and bounded is refused with X402_QUOTE_SHAPE before any conflict comparison (MD-03)', () => {
+  const { response, check } = fixture();
+  const quote = { scheme: 'exact', network: 'eip155:84532', asset: 'USDC', maxAmountRequired: '250000' };
+  // A free-text quote (Bearer-token-shaped string), a nested array of strings under the
+  // known "extra" key, and a JSON-encoded string all forwarded verbatim under a known field
+  // name before MD-03; each is refused now, on either side of the envelope, alone or beside
+  // a well-typed quote (which is why this is X402_QUOTE_SHAPE and not QUOTE_CONFLICT: the
+  // malformed side never reaches the comparison).
+  for (const bad of ['Bearer opaque-secret-shaped-text', [{ ...quote, extra: ['opaque-nested-string'] }],
+    JSON.stringify({ authorization: 'opaque-secret-shaped-text' })]) {
+    assert.throws(() => check({ data: { ...response, x402Requirements: bad } }), { code: 'X402_QUOTE_SHAPE' }, JSON.stringify(bad));
+    assert.throws(() => check({ data: { ...response, x402Requirements: quote }, x402Requirements: bad }), { code: 'X402_QUOTE_SHAPE' }, JSON.stringify(bad));
+  }
 });

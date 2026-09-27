@@ -80,7 +80,13 @@ async function readStandardInput() {
 
 function writeFileAtomic(file, text) {
   const temporary = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(temporary, text, { flag: 'w' });
+  // Owner-only from creation (MD-04): the bearer tokens this writes are read
+  // once by createRoleResolver to grant the owner or agent role over HTTP, so
+  // another local account should not be able to read them off disk. mode is
+  // advisory only on Windows, where the file's real access comes from the
+  // inherited ACL of its parent directory, not this bit; it still matters on
+  // any POSIX run.
+  fs.writeFileSync(temporary, text, { flag: 'w', mode: 0o600 });
   fs.renameSync(temporary, file);
 }
 
