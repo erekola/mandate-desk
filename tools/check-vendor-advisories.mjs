@@ -25,6 +25,25 @@ function readComponents() {
   return sbom.components.map(item => ({ name: item.name, version: item.version }));
 }
 
+// Validates one component's OSV.dev result object before it is allowed to mean
+// "no advisory found": null, a non-object, an array, an explicit error field or
+// a non-array vulns field must all fail loudly rather than fall through to an
+// empty list (NF-02). A missing vulns key is the documented shape for a clean
+// component and stays allowed.
+function validatedVulns(result, componentLabel) {
+  if (result === null || typeof result !== 'object' || Array.isArray(result)) {
+    throw new Error(`OSV.dev result for ${componentLabel} was not an object (got ${JSON.stringify(result)}).`);
+  }
+  if (Object.hasOwn(result, 'error')) {
+    throw new Error(`OSV.dev returned an error for ${componentLabel}: ${JSON.stringify(result.error)}.`);
+  }
+  if (!Object.hasOwn(result, 'vulns')) return [];
+  if (!Array.isArray(result.vulns)) {
+    throw new Error(`OSV.dev result for ${componentLabel} had a non-array vulns field (got ${JSON.stringify(result.vulns)}).`);
+  }
+  return result.vulns;
+}
+
 async function queryOsv(components) {
   const queries = components.map(item => ({ package: { name: item.name, ecosystem: 'npm' }, version: item.version }));
   const response = await fetch(OSV_BATCH_URL, {
@@ -52,10 +71,18 @@ async function main() {
     process.exitCode = 2;
     return;
   }
+  let checked;
+  try {
+    checked = components.map((component, index) =>
+      ({ component, vulns: validatedVulns(results[index], `${component.name}@${component.version}`) }));
+  } catch (error) {
+    console.error(`OSV.dev response was malformed: ${error.message}`);
+    console.error('Treating this as a failed check, not a clean result: no "Last run" line is printed.');
+    process.exitCode = 2;
+    return;
+  }
   let anyVulnerable = false;
-  for (let index = 0; index < components.length; index += 1) {
-    const component = components[index];
-    const vulns = Array.isArray(results[index]?.vulns) ? results[index].vulns : [];
+  for (const { component, vulns } of checked) {
     if (vulns.length === 0) {
       console.log(`OK    ${component.name}@${component.version}: no OSV.dev advisory found.`);
     } else {

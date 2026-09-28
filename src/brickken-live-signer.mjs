@@ -282,7 +282,22 @@ export class LiveSigner {
     // already existed with a looser mode. See tools/live-signer.mjs and
     // SECURITY.md for the same note on the Windows ACL gap.
     fs.mkdirSync(stateDirectory, { recursive: true, mode: 0o700 });
-    try { fs.chmodSync(stateDirectory, 0o700); } catch { /* best effort outside POSIX */ }
+    try {
+      fs.chmodSync(stateDirectory, 0o700);
+    } catch (error) {
+      // POSIX chmod failures must not be swallowed silently (MD-04): the
+      // signer log this directory holds records every prepared and signed
+      // transaction of the run, so a failed chmod leaving it readable by
+      // another local account is not a condition to continue past quietly.
+      // Only the Windows ACL gap (documented in SECURITY.md) stays a soft
+      // failure, because mode bits are advisory there regardless.
+      if (process.platform === 'win32') {
+        // best effort outside POSIX: real access comes from the inherited ACL, not this bit.
+      } else {
+        console.error(`could not set the signer state directory to owner-only mode (chmod 0700): ${error.message}`);
+        throw error;
+      }
+    }
     this.logFile = path.join(stateDirectory, `signer-log-${this.approval.approvalSha256.slice(0, 16)}.json`);
     this.#document = this.#load();
   }

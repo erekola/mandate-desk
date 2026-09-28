@@ -31,6 +31,35 @@ function uintEqual(left, right) {
   try { return BigInt(left) === BigInt(right); } catch { return false; }
 }
 
+// The same consistency rules applied to either the run's own finality reading
+// or a saved finality.json evidence file: an entry must exist for every
+// semantically verified write and every passed, canonical control, naming the
+// same block number and block hash the run itself recorded and marked
+// finalized, and the reading itself must be no older than the run's last write
+// or control change. Returns the list of problem codes, empty when consistent.
+function finalityConsistencyProblems(finality, { latestChangeMs, records, controls }) {
+  const problems = [];
+  if (finality.allFinalized !== true) problems.push('FINALITY_NOT_ALL_FINALIZED');
+  if (!(Date.parse(finality.checkedAt) >= latestChangeMs)) problems.push('FINALITY_OUTDATED');
+  for (const step of LIVE_WRITE_STEPS) {
+    const record = records[step];
+    if (!record?.confirmation) continue;
+    const entry = finality.entries.find(item => item.operationId === record.operationId);
+    if (!entry) { problems.push(`FINALITY_ENTRY_MISSING:${step}`); continue; }
+    if (!uintEqual(entry.blockNumber, record.confirmation.blockNumber) || entry.blockHash !== record.confirmation.blockHash) problems.push(`FINALITY_ENTRY_STALE:${step}`);
+    if (entry.finalized !== true) problems.push(`FINALITY_ENTRY_NOT_FINALIZED:${step}`);
+  }
+  for (const id of LIVE_CONTROL_IDS) {
+    const control = controls[id];
+    if (!control?.observed) continue;
+    const entry = finality.entries.find(item => item.controlId === id);
+    if (!entry) { problems.push(`FINALITY_CONTROL_MISSING:${id}`); continue; }
+    if (!uintEqual(entry.blockNumber, control.blockNumber) || entry.blockHash !== control.blockHash) problems.push(`FINALITY_CONTROL_STALE:${id}`);
+    if (entry.finalized !== true) problems.push(`FINALITY_CONTROL_NOT_FINALIZED:${id}`);
+  }
+  return problems;
+}
+
 // The content-check kind of a required evidence file, from the base name
 // evaluateLiveRunCompleteness uses for it (LIVE_BASE_EVIDENCE_FILES entries,
 // a control ID, or "<operationId>-preparation|receipt|postcheck"). null for a
@@ -74,26 +103,7 @@ export function evaluateLiveRunCompleteness({ run, journal, evidenceDirectory = 
   }
   const finality = run.finality;
   if (!finality || !Array.isArray(finality.entries)) note('FINALITY_MISSING');
-  else {
-    if (finality.allFinalized !== true) note('FINALITY_NOT_ALL_FINALIZED');
-    if (!(Date.parse(finality.checkedAt) >= latestChangeMs)) note('FINALITY_OUTDATED');
-    for (const step of LIVE_WRITE_STEPS) {
-      const record = records[step];
-      if (!record?.confirmation) continue;
-      const entry = finality.entries.find(item => item.operationId === record.operationId);
-      if (!entry) { note(`FINALITY_ENTRY_MISSING:${step}`); continue; }
-      if (!uintEqual(entry.blockNumber, record.confirmation.blockNumber) || entry.blockHash !== record.confirmation.blockHash) note(`FINALITY_ENTRY_STALE:${step}`);
-      if (entry.finalized !== true) note(`FINALITY_ENTRY_NOT_FINALIZED:${step}`);
-    }
-    for (const id of LIVE_CONTROL_IDS) {
-      const control = controls[id];
-      if (!control?.observed) continue;
-      const entry = finality.entries.find(item => item.controlId === id);
-      if (!entry) { note(`FINALITY_CONTROL_MISSING:${id}`); continue; }
-      if (!uintEqual(entry.blockNumber, control.blockNumber) || entry.blockHash !== control.blockHash) note(`FINALITY_CONTROL_STALE:${id}`);
-      if (entry.finalized !== true) note(`FINALITY_CONTROL_NOT_FINALIZED:${id}`);
-    }
-  }
+  else for (const problem of finalityConsistencyProblems(finality, { latestChangeMs, records, controls })) note(problem);
   if (!/^[a-f0-9]{64}$/.test(run.codeIdentitySha256 ?? '')) note('CODE_IDENTITY_MISSING');
   if (evidenceDirectory !== null) {
     const required = [...LIVE_BASE_EVIDENCE_FILES, ...LIVE_CONTROL_IDS];
@@ -112,6 +122,21 @@ export function evaluateLiveRunCompleteness({ run, journal, evidenceDirectory = 
       const problems = fieldsMissingFromSchema(kind, parsed);
       if (problems.length) note(`EVIDENCE_FIELD_MISSING:${name}:${problems[0]}`);
     }
+    // The saved finality.json evidence file was checked only against its field
+    // schema above, which a placeholder or self-contradictory but well-typed
+    // document still passes (NF-01). Cross-check its content against the run
+    // the same way run.finality itself is checked just above, so a saved file
+    // that disagrees with the run's own writes and controls cannot still leave
+    // this evaluator reading complete.
+    {
+      const file = path.join(evidenceDirectory, 'finality.json');
+      let saved;
+      try { saved = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { saved = null; }
+      if (saved && Array.isArray(saved.entries)) {
+        for (const problem of finalityConsistencyProblems(saved, { latestChangeMs, records, controls })) note(`SAVED_FINALITY_${problem}`);
+      }
+    }
+
     // The receipt evidence names the same transaction the journal recorded as
     // signed for this step; a receipt content that is internally well-formed
     // but names a different hash is still wrong (MD-02's named cross-check).

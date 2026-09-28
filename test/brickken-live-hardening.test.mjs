@@ -481,6 +481,51 @@ test('MD-02: a required evidence file emptied to {} makes the run incomplete wit
   assert.equal(evaluateLiveRunCompleteness({ run: currentRun, journal: owner.journal, evidenceDirectory }).complete, true);
 });
 
+// ---------------------------------------------------------------------------
+// NF-01: a saved finality.json evidence file that passes its field schema but
+// contradicts the run's own writes and controls must not still read complete
+// (varmennus-V04.md P2). Before this fix evaluateLiveRunCompleteness only ran
+// fieldsMissingFromSchema on the saved file and never compared its content
+// with the run.
+
+test('NF-01: a schema-valid but contradictory finality.json evidence file makes the run incomplete', async () => {
+  const env = environment();
+  const { owner, run } = await completedAndFinal(env);
+  const currentRun = JSON.parse(fs.readFileSync(path.join(env.dir, 'live', 'live-workspace.json'), 'utf8'))
+    .runs.find(item => item.runId === run.runId);
+  const evidenceDirectory = path.dirname(evidenceFile(env, run, 'run-approval'));
+
+  const baseline = evaluateLiveRunCompleteness({ run: currentRun, journal: owner.journal, evidenceDirectory });
+  assert.equal(baseline.complete, true, JSON.stringify(baseline.missing));
+
+  // Every required key is present with the right type, so fieldsMissingFromSchema
+  // sees nothing wrong; the entries just name no operation the run recorded, and
+  // only a content cross-check against the run itself can catch that (NF-01).
+  const restorePlaceholder = editEvidence(env, run, 'finality', value => {
+    value.entries = [{}];
+  });
+  assert.deepEqual(fieldsMissingFromSchema('finality', JSON.parse(fs.readFileSync(evidenceFile(env, run, 'finality'), 'utf8'))), [],
+    'the placeholder shape must still satisfy the field schema, or this is not the NF-01 gap');
+  const placeholder = evaluateLiveRunCompleteness({ run: currentRun, journal: owner.journal, evidenceDirectory });
+  assert.equal(placeholder.complete, false);
+  assert.ok(placeholder.missing.some(code => code.startsWith('SAVED_FINALITY_')), JSON.stringify(placeholder.missing));
+  restorePlaceholder();
+  assert.equal(evaluateLiveRunCompleteness({ run: currentRun, journal: owner.journal, evidenceDirectory }).complete, true);
+
+  // A saved finality that flatly denies what the run's own controls and writes
+  // record (an honestly incomplete-looking document) must also fail, not only
+  // a placeholder shape that fakes success.
+  const restoreDenial = editEvidence(env, run, 'finality', value => {
+    value.entries = [];
+    value.allFinalized = false;
+  });
+  const denial = evaluateLiveRunCompleteness({ run: currentRun, journal: owner.journal, evidenceDirectory });
+  assert.equal(denial.complete, false);
+  assert.ok(denial.missing.includes('SAVED_FINALITY_FINALITY_NOT_ALL_FINALIZED'), JSON.stringify(denial.missing));
+  restoreDenial();
+  assert.equal(evaluateLiveRunCompleteness({ run: currentRun, journal: owner.journal, evidenceDirectory }).complete, true);
+});
+
 
 test('MD-02: the finality evidence schema type-checks checkedAt and refuses allFinalized:true with zero entries', () => {
   // The exact probe the review reported: every required key present, of a

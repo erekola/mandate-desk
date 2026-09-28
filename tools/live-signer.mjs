@@ -131,7 +131,22 @@ async function main() {
   // rather than depend on an external tool from inside a zero-dependency
   // signer.
   fs.mkdirSync(liveDirectory, { recursive: true, mode: 0o700 });
-  try { fs.chmodSync(liveDirectory, 0o700); } catch { /* best effort outside POSIX */ }
+  try {
+    fs.chmodSync(liveDirectory, 0o700);
+  } catch (error) {
+    // POSIX chmod failures must not be swallowed silently (MD-04): a failed
+    // chmod here can leave the directory holding the bearer tokens readable
+    // by another local account, which is exactly the guarantee this call
+    // exists to provide. Only the Windows ACL gap (documented in
+    // SECURITY.md) stays a soft failure, because mode bits are advisory
+    // there regardless of whether chmod itself succeeds.
+    if (process.platform === 'win32') {
+      // best effort outside POSIX: real access comes from the inherited ACL, not this bit.
+    } else {
+      console.error(`could not set the live directory to owner-only mode (chmod 0700): ${error.message}`);
+      throw error;
+    }
+  }
   let signer;
   try {
     signer = new LiveSigner({

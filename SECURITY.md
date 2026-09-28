@@ -26,7 +26,7 @@ The signer endpoint record must match its exact format and name the code identit
 
 ## File and directory permissions
 
-`tools/live-signer.mjs` creates the `live` directory and the token and endpoint files inside it with an explicit owner-only mode (`0o700` and `0o600`), and `src/brickken-live-signer.mjs` does the same for its own signer-log directory. On POSIX this is enforced, including for a directory the process finds already on disk with a looser mode, because the code calls `chmod` after `mkdir` as well.
+`tools/live-signer.mjs` creates the `live` directory and the token and endpoint files inside it with an explicit owner-only mode (`0o700` and `0o600`), and `src/brickken-live-signer.mjs` does the same for its own signer-log directory. On POSIX the code enforces this by calling `chmod` after `mkdir`, including for a directory the process finds already on disk with a looser mode. If that `chmod` call itself fails on POSIX, the process logs the error and exits rather than continuing with a directory it could not restrict.
 
 On Windows the file and directory mode bits are advisory: real access comes from the inherited ACL of the parent directory, which Windows sets from the account that created it and from that account's own permissions. This repository does not set or validate a Windows ACL, because doing so from Node without an npm dependency means shelling out to `icacls`, an OS tool this zero-dependency project has chosen not to depend on for a security control. Run the signer under an account whose profile folder is not shared with other local accounts, and treat the token and log files as sensitive for as long as the signer process runs, the same way you would treat any other bearer credential on that machine.
 
