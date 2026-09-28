@@ -267,8 +267,18 @@ const REQUIRED_CONTENT = Object.freeze({
   ],
   finality: value => [
     ...requireKeys(value, ['checkedAt', 'entries', 'allFinalized']),
+    // checkedAt is always the ISO string isoAt(nowMs()) produces
+    // (brickken-workspace.mjs); requireKeys only proved the key present, so an
+    // array or object there (the probe {"checkedAt":[],"entries":[],
+    // "allFinalized":true}) used to pass (MD-02).
+    ...(typeof value?.checkedAt === 'string' && value.checkedAt !== '' ? [] : ['checkedAt:not-a-string']),
     ...(Array.isArray(value?.entries) ? [] : ['entries:not-an-array']),
-    ...(typeof value?.allFinalized === 'boolean' ? [] : ['allFinalized:not-a-boolean'])
+    ...(typeof value?.allFinalized === 'boolean' ? [] : ['allFinalized:not-a-boolean']),
+    // A run always tracks at least one write or control, so an honest
+    // finality reading with zero entries can never claim everything is
+    // finalized; that combination checked nothing (MD-02).
+    ...(Array.isArray(value?.entries) && value.entries.length === 0 && value?.allFinalized === true
+      ? ['allFinalized:true-with-no-entries'] : [])
   ],
   'step-preparation': value => [
     ...requireKeys(value, ['operationId', 'step', 'transaction', 'preparedAt', 'observedBlock']),

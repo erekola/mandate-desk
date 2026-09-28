@@ -18,7 +18,7 @@ import { loadLiveProposal } from '../src/brickken-live-plan.mjs';
 import { LiveSignerClient, runLiveControl, validSignerEndpoint } from '../src/brickken-live-adapter.mjs';
 import { LIVE_LOCK_KIND, LiveLockError, acquireLiveLock, pathBindingProblem, readLockHolder } from '../src/live-lock.mjs';
 import { PROCESS_CODE_IDENTITY_SHA256 } from '../src/code-identity.mjs';
-import { EVIDENCE_SCHEMA_KINDS, evidenceKindOf, fieldsOutsideSchema } from '../src/brickken-live-evidence-schema.mjs';
+import { EVIDENCE_SCHEMA_KINDS, evidenceKindOf, fieldsMissingFromSchema, fieldsOutsideSchema } from '../src/brickken-live-evidence-schema.mjs';
 import { FakeRpc, FakeSepolia, FakeSignerGateway, createClock } from './live-fakes.mjs';
 import { evaluateLiveRunCompleteness } from '../src/brickken-live-completeness.mjs';
 
@@ -371,10 +371,15 @@ test('MD-01: control-cumulative-cap fails on mandate-matches-approved-grant when
   const chain = new FakeSepolia({ proposal, clock, actionConfigured: true });
   chain.state.allowance = 100000n;
   chain.state.actionEnabled = true;
+  // The approved grant's own caps equal proposal.limits here on purpose: this
+  // test isolates the identity check from the cap arithmetic fixed separately
+  // by MD-01 below, so its cap-probe conditions read the same regardless of
+  // which of the two sources controlConditions takes them from.
   const approvedMandate = {
     agent: proposal.agent, validFrom: String(chain.latest().timestamp - 60), validUntil: String(chain.latest().timestamp + 3600),
     principal: proposal.principal, complianceProvider: address('7'), identityRef: '0x' + 'a'.repeat(64),
-    asset: proposal.token.address, maxTransactionValue: '5000', maxCumulativeValue: '100000', metadata: '0x' + '0'.repeat(64)
+    asset: proposal.token.address, maxTransactionValue: proposal.limits.maxTransactionValue,
+    maxCumulativeValue: proposal.limits.maxCumulativeValue, metadata: '0x' + '0'.repeat(64)
   };
   // The mandate actually on chain keeps every cap-relevant field the approved
   // grant has (so the per-probe reads behave exactly as the approved grant
@@ -398,6 +403,43 @@ test('MD-01: control-cumulative-cap fails on mandate-matches-approved-grant when
   chain.mine();
   const matched = await runLiveControl({ proposal, rpcs, controlId: 'control-cumulative-cap', approvedMandate, now: () => clock.ms });
   assert.equal(matched.passed, true);
+});
+
+test('MD-01: the cap arithmetic reads the approved mandate\'s own caps, not a diverging proposal.limits', async () => {
+  const address = digit => '0x' + digit.repeat(40);
+  const proposal = {
+    principal: address('1'), agent: address('2'), executor: address('3'), registry: address('4'),
+    token: { address: address('5') }, recipient: { address: address('6') },
+    // Deliberately far looser than the approved grant, so the old bug (caps
+    // read from proposal.limits) and the fix (caps read from approvedMandate)
+    // disagree on the outcome: the old code would report this control passed
+    // no matter how large the probe amounts got.
+    limits: { maxTransactionValue: '999999999', maxCumulativeValue: '999999999' },
+    amounts: { execute: '5000', overTransactionCapProbe: '6000' }
+  };
+  const clock = createClock();
+  const chain = new FakeSepolia({ proposal, clock, actionConfigured: true });
+  chain.state.allowance = 1000000n;
+  chain.state.actionEnabled = true;
+  const approvedMandate = {
+    agent: proposal.agent, validFrom: String(chain.latest().timestamp - 60), validUntil: String(chain.latest().timestamp + 3600),
+    principal: proposal.principal, complianceProvider: address('7'), identityRef: '0x' + 'c'.repeat(64),
+    asset: proposal.token.address, maxTransactionValue: '5000', maxCumulativeValue: '1000000', metadata: '0x' + '0'.repeat(64)
+  };
+  // Chain reality matches the approved grant exactly (identity and caps): the
+  // real on-chain enforcement is 5000 per transaction, whatever proposal.limits says.
+  chain.state.mandate = { ...approvedMandate, revoked: false, cumulativeUsed: '0' };
+  chain.mine();
+  const rpcs = { primary: new FakeRpc(chain, 'primary'), secondary: new FakeRpc(chain, 'secondary') };
+  const control = await runLiveControl({ proposal, rpcs, controlId: 'control-transaction-cap', approvedMandate, now: () => clock.ms });
+  // The 6000 probe really is over the approved 5000 cap (real chain revert)
+  // and the control's own conditions must say so too, not "over is within a
+  // 999999999 cap" the way the buggy proposal.limits-based arithmetic would.
+  assert.ok(control.calls.every(call => call.passed && call.secondaryAgrees), JSON.stringify(control.calls));
+  const overCondition = control.conditions.find(item => item.id === 'over-amount-exceeds-transaction-cap');
+  assert.ok(overCondition, JSON.stringify(control.conditions));
+  assert.equal(overCondition.holds, true);
+  assert.equal(control.passed, true);
 });
 
 // ---------------------------------------------------------------------------
@@ -437,4 +479,41 @@ test('MD-02: a required evidence file emptied to {} makes the run incomplete wit
   assert.equal(mismatched.missing.some(code => code.startsWith('EVIDENCE_FIELD_MISSING:')), false, JSON.stringify(mismatched.missing));
   restoreReceipt();
   assert.equal(evaluateLiveRunCompleteness({ run: currentRun, journal: owner.journal, evidenceDirectory }).complete, true);
+});
+
+
+test('MD-02: the finality evidence schema type-checks checkedAt and refuses allFinalized:true with zero entries', () => {
+  // The exact probe the review reported: every required key present, of a
+  // type requireKeys alone never looked at.
+  assert.deepEqual(
+    fieldsMissingFromSchema('finality', { checkedAt: [], entries: [], allFinalized: true }),
+    ['checkedAt:not-a-string', 'allFinalized:true-with-no-entries']
+  );
+  // checkedAt of the wrong type alone, entries non-empty so the no-entries
+  // rule does not also fire.
+  assert.deepEqual(
+    fieldsMissingFromSchema('finality', { checkedAt: 1758975600000, entries: [{ operationId: 'x', finalized: true }], allFinalized: true }),
+    ['checkedAt:not-a-string']
+  );
+  // Zero entries alone, with a correctly typed checkedAt, is still refused
+  // whether or not allFinalized also lies about it.
+  assert.deepEqual(
+    fieldsMissingFromSchema('finality', { checkedAt: '2026-09-28T00:00:00.000Z', entries: [], allFinalized: true }),
+    ['allFinalized:true-with-no-entries']
+  );
+  // An honest reading with nothing yet finalized is not refused: zero
+  // entries is fine as long as allFinalized is not also claiming success.
+  assert.deepEqual(
+    fieldsMissingFromSchema('finality', { checkedAt: '2026-09-28T00:00:00.000Z', entries: [], allFinalized: false }),
+    []
+  );
+  // The shape every real run writes (brickken-workspace.mjs): still accepted.
+  assert.deepEqual(
+    fieldsMissingFromSchema('finality', {
+      checkedAt: '2026-09-28T00:00:00.000Z',
+      entries: [{ operationId: 'op-1', blockNumber: 1, blockHash: '0x' + '11'.repeat(32), finalized: true }],
+      allFinalized: true
+    }),
+    []
+  );
 });

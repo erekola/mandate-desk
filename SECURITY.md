@@ -24,6 +24,12 @@ A lock path that is a symbolic link, a junction or a second name of another file
 
 The signer endpoint record must match its exact format and name the code identity of the process that reads it. Before every write the workspace also asks the running signer for its approval and its code identity. The record is local and says what it says about itself, so these checks stop a stale or mismatched signer and cannot prove that a signer is genuine.
 
+## File and directory permissions
+
+`tools/live-signer.mjs` creates the `live` directory and the token and endpoint files inside it with an explicit owner-only mode (`0o700` and `0o600`), and `src/brickken-live-signer.mjs` does the same for its own signer-log directory. On POSIX this is enforced, including for a directory the process finds already on disk with a looser mode, because the code calls `chmod` after `mkdir` as well.
+
+On Windows the file and directory mode bits are advisory: real access comes from the inherited ACL of the parent directory, which Windows sets from the account that created it and from that account's own permissions. This repository does not set or validate a Windows ACL, because doing so from Node without an npm dependency means shelling out to `icacls`, an OS tool this zero-dependency project has chosen not to depend on for a security control. Run the signer under an account whose profile folder is not shared with other local accounts, and treat the token and log files as sensitive for as long as the signer process runs, the same way you would treat any other bearer credential on that machine.
+
 ## Evidence export
 
 `tools/export-live-evidence.mjs` publishes the evidence of one run under `verification/`. Every JSON file in the package is checked against a closed field schema for its kind, nested objects and array elements included, and a field outside the schema stops the export. The export also refuses a `signedTransaction` field anywhere and any member that is not a bounded regular file. It builds and checks the whole package before the folder exists, so a refused export leaves no partial package behind.

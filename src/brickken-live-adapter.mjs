@@ -435,8 +435,15 @@ export function sameMandateIdentity(mandate, planned) {
 function controlConditions(proposal, controlId, facts, timestamp, approvedMandate) {
   const m = facts.mandate;
   const used = m ? BigInt(m.cumulativeUsed) : 0n;
-  const maxTx = BigInt(proposal.limits.maxTransactionValue);
-  const maxCum = BigInt(proposal.limits.maxCumulativeValue);
+  // The cap arithmetic reads the approved grant's own caps, not proposal.limits
+  // (MD-01): a proposal whose limits differ from what the run's grant actually
+  // put on chain must not shift what a control treats as the transaction or
+  // cumulative ceiling. approvedMandate is null only before a grant is signed,
+  // when no control that reads a cap ever runs (see #control in
+  // brickken-workspace.mjs), so the proposal fallback here is defensive only.
+  const capSource = approvedMandate ?? proposal.limits;
+  const maxTx = BigInt(capSource.maxTransactionValue);
+  const maxCum = BigInt(capSource.maxCumulativeValue);
   const conditions = [];
   const hold = (id, value) => conditions.push({ id, holds: Boolean(value) });
   const inWindow = m !== null && BigInt(m.validFrom) <= BigInt(timestamp) && BigInt(timestamp) < BigInt(m.validUntil);

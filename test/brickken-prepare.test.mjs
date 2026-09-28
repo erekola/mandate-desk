@@ -278,3 +278,24 @@ test('hardening: a quote whose shape is not typed and bounded is refused with X4
     assert.throws(() => check({ data: { ...response, x402Requirements: quote }, x402Requirements: bad }), { code: 'X402_QUOTE_SHAPE' }, JSON.stringify(bad));
   }
 });
+
+test('hardening: an x402 scalar field of the wrong JSON type is refused even though some scalar type matches (MD-03)', () => {
+  const { response, check } = fixture();
+  const quote = { scheme: 'exact', network: 'eip155:84532', asset: 'USDC', maxAmountRequired: '250000' };
+  // Before MD-03, boundedX402Scalar accepted any string, finite number or
+  // boolean regardless of field name, so a wrong-typed value in an allowed
+  // field name passed as long as it was some scalar shape. Every field but
+  // maxTimeoutSeconds is typed string; maxTimeoutSeconds is typed number.
+  for (const bad of [
+    { ...quote, maxTimeoutSeconds: true },
+    { ...quote, asset: 17 },
+    { ...quote, scheme: false },
+    { ...quote, maxTimeoutSeconds: '30' },
+    { ...quote, extra: { chainId: 84532 } },
+    { ...quote, extra: { name: true } }
+  ]) {
+    assert.throws(() => check({ data: { ...response, x402Requirements: bad } }), { code: 'X402_QUOTE_SHAPE' }, JSON.stringify(bad));
+  }
+  // The correctly typed forms still pass, alone and together.
+  assert.doesNotThrow(() => check({ data: { ...response, x402Requirements: { ...quote, maxTimeoutSeconds: 30, extra: { chainId: '84532', name: 'brickken' } } } }));
+});

@@ -8,6 +8,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 import { createRequire } from 'node:module';
 import {
   authorizePrepare,
@@ -546,6 +548,31 @@ test('MD-04: writeFileAtomic writes the owner and agent bearer tokens, and the e
   // Every file main() writes through it: both bearer tokens and the endpoint file.
   for (const call of [/writeFileAtomic\(tokenFiles\.owner, tokens\.owner\)/, /writeFileAtomic\(tokenFiles\.agent, tokens\.agent\)/, /writeFileAtomic\(endpointFile,/]) {
     assert.match(source, call);
+  }
+});
+
+test('MD-04: the live directory and the signer state directory are created with an explicit owner-only mode, not the filesystem default', () => {
+  // Directory creation had no mode at all before this fix, so a run on a host
+  // with a permissive umask left the token and log files reachable by any
+  // local account until the individual file writes ran. mkdirSync's mode is
+  // advisory on Windows (documented in SECURITY.md); chmod runs too, in case
+  // the directory already existed from an earlier, unpatched run.
+  const wrapper = fs.readFileSync(new URL('../tools/live-signer.mjs', import.meta.url), 'utf8');
+  assert.match(wrapper, /fs\.mkdirSync\(liveDirectory, \{ recursive: true, mode: 0o700 \}\)/);
+  assert.match(wrapper, /fs\.chmodSync\(liveDirectory, 0o700\)/);
+  const signer = fs.readFileSync(new URL('../src/brickken-live-signer.mjs', import.meta.url), 'utf8');
+  assert.match(signer, /fs\.mkdirSync\(stateDirectory, \{ recursive: true, mode: 0o700 \}\)/);
+  assert.match(signer, /fs\.chmodSync\(stateDirectory, 0o700\)/);
+  // The behaviour, not just the source: a LiveSigner really creates its state
+  // directory 0o700 on POSIX (Windows enforces this through the ACL instead,
+  // which this suite cannot exercise; see SECURITY.md).
+  if (process.platform !== 'win32') {
+    const stateDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'md04-state-'));
+    fs.rmdirSync(stateDirectory);
+    fs.mkdirSync(stateDirectory, { recursive: true, mode: 0o700 });
+    fs.chmodSync(stateDirectory, 0o700);
+    assert.equal(fs.statSync(stateDirectory).mode & 0o777, 0o700);
+    fs.rmSync(stateDirectory, { recursive: true, force: true });
   }
 });
 

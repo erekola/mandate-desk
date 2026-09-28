@@ -191,20 +191,34 @@ function checkExecutionModeEcho(json) {
 // string or a nested array of strings under a known name used to pass through
 // unexamined (MD-03). This is the boundary that keeps that from happening;
 // nothing past this point ever sees the untyped quote again.
-const X402_SCALAR_KEYS = ['scheme', 'network', 'amount', 'maxAmountRequired', 'asset', 'payTo', 'resource', 'description', 'mimeType', 'maxTimeoutSeconds'];
-const X402_EXTRA_KEYS = ['name', 'version', 'assetTransferMethod', 'chainId', 'displayPrice', 'operationChainId', 'paymentChainId', 'routeKey', 'tokenSymbol'];
+// Every field the x402 payment-requirement document and the sandbox's
+// "extra" extension type as a string, except maxTimeoutSeconds, a number of
+// seconds. A value present under an allowed name with the wrong JSON type is
+// refused instead of forwarded (MD-03): boundedX402Scalar alone accepted any
+// string, finite number or boolean in any field, so maxTimeoutSeconds:true,
+// asset:17 or scheme:false passed as long as some scalar type matched.
+const X402_SCALAR_TYPES = Object.freeze({
+  scheme: 'string', network: 'string', amount: 'string', maxAmountRequired: 'string', asset: 'string',
+  payTo: 'string', resource: 'string', description: 'string', mimeType: 'string', maxTimeoutSeconds: 'number'
+});
+const X402_EXTRA_TYPES = Object.freeze({
+  name: 'string', version: 'string', assetTransferMethod: 'string', chainId: 'string', displayPrice: 'string',
+  operationChainId: 'string', paymentChainId: 'string', routeKey: 'string', tokenSymbol: 'string'
+});
+const X402_SCALAR_KEYS = Object.keys(X402_SCALAR_TYPES);
+const X402_EXTRA_KEYS = Object.keys(X402_EXTRA_TYPES);
 const MAX_X402_STRING_LENGTH = 512;
 const MAX_X402_QUOTE_ITEMS = 8;
-function boundedX402Scalar(value) {
-  return (typeof value === 'string' && value.length <= MAX_X402_STRING_LENGTH) ||
-    (typeof value === 'number' && Number.isFinite(value)) || typeof value === 'boolean';
+function boundedX402Scalar(value, type) {
+  if (type === 'number') return typeof value === 'number' && Number.isFinite(value);
+  return typeof value === 'string' && value.length <= MAX_X402_STRING_LENGTH;
 }
 function sanitizeX402Extra(extra) {
   if (extra === undefined) return undefined;
   if (!plain(extra)) fail('X402_QUOTE_SHAPE');
   const out = {};
   for (const key of Object.keys(extra)) {
-    if (!X402_EXTRA_KEYS.includes(key) || !boundedX402Scalar(extra[key])) fail('X402_QUOTE_SHAPE');
+    if (!X402_EXTRA_KEYS.includes(key) || !boundedX402Scalar(extra[key], X402_EXTRA_TYPES[key])) fail('X402_QUOTE_SHAPE');
     out[key] = extra[key];
   }
   return Object.freeze(out);
@@ -214,7 +228,7 @@ function sanitizeX402Requirement(item) {
   const out = {};
   for (const key of Object.keys(item)) {
     if (key === 'extra') { out.extra = sanitizeX402Extra(item.extra); continue; }
-    if (!X402_SCALAR_KEYS.includes(key) || !boundedX402Scalar(item[key])) fail('X402_QUOTE_SHAPE');
+    if (!X402_SCALAR_KEYS.includes(key) || !boundedX402Scalar(item[key], X402_SCALAR_TYPES[key])) fail('X402_QUOTE_SHAPE');
     out[key] = item[key];
   }
   return Object.freeze(out);

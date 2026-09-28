@@ -122,7 +122,16 @@ async function main() {
   }
 
   const liveDirectory = path.join(settings.dataDirectory, 'live');
-  fs.mkdirSync(liveDirectory, { recursive: true });
+  // Owner-only from creation (MD-04): this directory holds the owner and
+  // agent bearer tokens writeFileAtomic writes below. mode is advisory only
+  // on Windows (see writeFileAtomic above); it is enforced with chmod too, in
+  // case the directory already existed with a looser mode from an earlier,
+  // unpatched run. Windows access still comes from the parent's inherited
+  // ACL: this repository sets no ACL and documents that gap in SECURITY.md
+  // rather than depend on an external tool from inside a zero-dependency
+  // signer.
+  fs.mkdirSync(liveDirectory, { recursive: true, mode: 0o700 });
+  try { fs.chmodSync(liveDirectory, 0o700); } catch { /* best effort outside POSIX */ }
   let signer;
   try {
     signer = new LiveSigner({

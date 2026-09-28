@@ -1,6 +1,8 @@
 # Advisory check for the vendored signing bundle
 
-`ethers.umd.min.cjs` is vendored, not an npm dependency. `package.json` declares no dependencies and `.github/dependabot.yml` tracks only GitHub Actions, so neither `npm audit` nor Dependabot ever inventories this file or the libraries bundled inside it. The check below is manual. This file only says where to look, and nothing in the repository runs it.
+`ethers.umd.min.cjs` is vendored, not an npm dependency. `package.json` declares no dependencies and `.github/dependabot.yml` tracks only GitHub Actions, so neither `npm audit` nor Dependabot ever inventories this file or the libraries bundled inside it.
+
+`tools/check-vendor-advisories.mjs` runs the OSV.dev part of this check for all five components listed below, including the four bundled ones (MD-07): `node tools/check-vendor-advisories.mjs` reads their name and version straight from `sbom.json`, queries `https://api.osv.dev/v1/querybatch` once for all of them, and prints one `OK` or `FOUND` line per component plus a `Last run` line to paste below. It needs network access, so this repository's own tests and CI never run it (see "Tests" in `SECURITY.md`); it is a tool to run by hand, not a scheduled job. The three checks in "How to check" below that OSV.dev does not cover (the GitHub Advisory Database search, the ethers security page and `npm audit` against the top-level version) stay manual.
 
 ## Components and versions
 
@@ -27,4 +29,4 @@ Run these from a machine that may reach the network. This repository's own tests
 
 A clean result is an advisory check and not a cryptographic audit of the vendored bytes. It also does not cover a vulnerability disclosed after the check was run. Run it again before vendoring a new ethers version, and from time to time in between, because nothing here watches for a new advisory.
 
-Last run: 2026-09-26, during an external hostile source audit of this repository. It matched the bundle against the upstream release. The four bundled libraries were not queried against an advisory database in that round.
+Last run: 2026-09-26, during an external hostile source audit of this repository, matched the bundle against the upstream release without querying an advisory database for the four bundled libraries. Last run: 2026-09-28T12:58:22.616Z, OSV.dev, 5/5 components queried (ethers, @noble/hashes, @noble/curves, @adraffy/ens-normalize, aes-js), no advisory found for any of them (`node tools/check-vendor-advisories.mjs`).

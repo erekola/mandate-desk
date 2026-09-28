@@ -276,7 +276,13 @@ export class LiveSigner {
       return value;
     };
     if (typeof stateDirectory !== 'string') fail('CONFIGURATION');
-    fs.mkdirSync(stateDirectory, { recursive: true });
+    // Owner-only from creation (MD-04): this directory holds the signer log,
+    // which records every prepared and signed transaction of the run. mode
+    // is advisory only on Windows; chmod also runs in case the directory
+    // already existed with a looser mode. See tools/live-signer.mjs and
+    // SECURITY.md for the same note on the Windows ACL gap.
+    fs.mkdirSync(stateDirectory, { recursive: true, mode: 0o700 });
+    try { fs.chmodSync(stateDirectory, 0o700); } catch { /* best effort outside POSIX */ }
     this.logFile = path.join(stateDirectory, `signer-log-${this.approval.approvalSha256.slice(0, 16)}.json`);
     this.#document = this.#load();
   }
