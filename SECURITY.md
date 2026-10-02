@@ -22,7 +22,13 @@ The data folder, `.local-demo` by default, holds the live workspace, the recover
 
 A lock path that is a symbolic link, a junction or a second name of another file is refused and left in place. After the open, the path must name the file that the exclusive handle holds.
 
-The signer endpoint record must match its exact format and name the code identity of the process that reads it. Before every write the workspace also asks the running signer for its approval and its code identity. The record is local and says what it says about itself, so these checks stop a stale or mismatched signer and cannot prove that a signer is genuine.
+The signer endpoint record must match its exact format and name the code identity of the process that reads it. Before every write-capable phase the workspace also asks the running signer for its approval and its code identity. The record is local and says what it says about itself, so these checks stop a stale or mismatched signer and cannot prove that a signer is genuine.
+
+## Known limits
+
+The last pre-sign check re-reads the canonicity of the recorded control blocks from both sources, but it does not compare the current on-chain mandate with the approved grant. A mandate that the owner replaces on chain after approval is therefore caught when a control observes it, not at the moment of signing. Before signing, the calldata must still equal what the approved proposal expects, which for the execute step fixes the recipient, the amount and the token. The gas limit and the fee values must stay at or below the proposal's ceilings.
+
+The completeness check confirms that each saved postcheck exists and has the right shape. It does not compare the saved report with the postcheck hash in the journal, so it trusts the run's own evidence folder. A writer with local access is the case this policy already puts out of scope.
 
 ## File and directory permissions
 
@@ -45,6 +51,8 @@ GitHub Actions runs `node tools/check-demo.mjs` on Windows for every push and pu
 ## Reporting a vulnerability
 
 If you discover a security vulnerability, please report it privately by emailing **info@turva.dev**.
+
+Send encrypted reports to erik@turva.dev. The OpenPGP key is at https://turva.dev/pgp-key.asc.
 
 Please do not open a public issue for security reports.
 

@@ -563,9 +563,11 @@ test('MD-04: the live directory and the signer state directory are created with 
   const signer = fs.readFileSync(new URL('../src/brickken-live-signer.mjs', import.meta.url), 'utf8');
   assert.match(signer, /fs\.mkdirSync\(stateDirectory, \{ recursive: true, mode: 0o700 \}\)/);
   assert.match(signer, /fs\.chmodSync\(stateDirectory, 0o700\)/);
-  // The behaviour, not just the source: a LiveSigner really creates its state
-  // directory 0o700 on POSIX (Windows enforces this through the ACL instead,
-  // which this suite cannot exercise; see SECURITY.md).
+  // A platform check of Node's own mkdirSync and chmodSync on a temp path, run
+  // on POSIX only: Windows enforces this through the ACL instead, which this
+  // suite cannot exercise (see SECURITY.md). It starts no LiveSigner and calls
+  // no production helper, so the only link to production code is the
+  // source-text assertions above.
   if (process.platform !== 'win32') {
     const stateDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'md04-state-'));
     fs.rmdirSync(stateDirectory);

@@ -30,15 +30,30 @@ function runWithFetchResults(results) {
 // or the script's own count-mismatch check (not the one under test) rejects it.
 const COMPONENT_COUNT = 5;
 
-test('NF-02: a malformed OSV.dev result (null, non-array vulns, an explicit error, or a wrong type) is a failed check, not a clean record', () => {
-  const malformed = [null, { vulns: 'not-an-array' }, { error: 'fixture failure' }, 17, false];
-  assert.equal(malformed.length, COMPONENT_COUNT);
-  const run = runWithFetchResults(malformed);
-  assert.equal(run.checkerExitCode, 2, run.stdout + run.stderr);
-  assert.doesNotMatch(run.stdout, /^OK /m, 'a malformed batch must not print any clean OK line');
-  assert.doesNotMatch(run.stdout, /Last run:/, 'a malformed batch must not print a pasteable "Last run" record');
-  assert.match(run.stderr, /malformed/i);
-});
+// Each malformed value sits inside an otherwise clean five-result batch, so the
+// checker's per-component validation reaches that value's own branch. A single
+// batch holding all five would stop at the first one and leave the rest unread.
+const CLEAN_BATCH = [{}, { vulns: [] }, {}, { vulns: [] }, {}];
+const MALFORMED_CASES = [
+  ['null', null, /was not an object \(got null\)/],
+  ['a non-array vulns field', { vulns: 'not-an-array' }, /non-array vulns field \(got "not-an-array"\)/],
+  ['an explicit error field', { error: 'fixture failure' }, /returned an error for .*"fixture failure"/],
+  ['a number', 17, /was not an object \(got 17\)/],
+  ['a boolean', false, /was not an object \(got false\)/]
+];
+
+for (const [label, value, message] of MALFORMED_CASES) {
+  test(`NF-02: a malformed OSV.dev result (${label}) is a failed check, not a clean record`, () => {
+    const batch = CLEAN_BATCH.map((entry, index) => (index === 2 ? value : entry));
+    assert.equal(batch.length, COMPONENT_COUNT);
+    const run = runWithFetchResults(batch);
+    assert.equal(run.checkerExitCode, 2, run.stdout + run.stderr);
+    assert.doesNotMatch(run.stdout, /^OK /m, 'a malformed batch must not print any clean OK line');
+    assert.doesNotMatch(run.stdout, /Last run:/, 'a malformed batch must not print a pasteable "Last run" record');
+    assert.match(run.stderr, /malformed/i);
+    assert.match(run.stderr, message);
+  });
+}
 
 test('NF-02: a clean OSV.dev response (missing vulns key, meaning none found) still reports OK and prints "Last run"', () => {
   const clean = [{}, { vulns: [] }, {}, { vulns: [] }, {}];
